@@ -16,6 +16,9 @@
 package com.npstrandberg.simplemq;
 
 import junit.framework.TestCase;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.util.Collection;
 
@@ -25,21 +28,24 @@ public class TestPersistentMessageQueue extends TestCase {
     private MessageQueue queue;
     private static final String TEST_DATABASE = "test-database";
 
-    @Override
+    @Before
     public void setUp() {
         queue = MessageQueueService.getMessageQueue(TEST_DATABASE, true);
         assertFalse(queue.deleted());
     }
 
+    @Test
     public void testQueueService() {
         Collection<String> queues = MessageQueueService.getMessageQueueNames();
         assertTrue(queues.contains(TEST_DATABASE));
     }
 
+    @Test
     public void testMessageQueue() {
         assertNotNull(queue);
     }
 
+    @Test
     public void testAddAndRecieve() {
 
         queue.send(new MessageInput("hello"));
@@ -74,7 +80,7 @@ public class TestPersistentMessageQueue extends TestCase {
     }
 
 
-    @Override
+    @After
     public void tearDown() {
         assertFalse(queue.deleted());
         MessageQueueService.deleteMessageQueue(TEST_DATABASE);
