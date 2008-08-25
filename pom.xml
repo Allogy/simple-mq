@@ -109,10 +109,10 @@
     </repositories>
 
     <distributionManagement>
-        <site>
+        <!--site>
             <id>googlecode</id>
             <url>svn:https://simple-mq.googlecode.com/svn/www</url>
-        </site>
+        </site-->
 
         <repository>
             <id>googlecode</id>
