@@ -39,12 +39,18 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
     private transient static Log logger = LogFactory.getLog(MessageQueueImp.class);
     private transient final Lock lock = new ReentrantLock();
-    private transient final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private transient final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
     private transient Connection conn;
 
     private final MessageQueueConfig queueConfig;
     private final String queueName;
     private boolean deleted;
+
+    /**
+     * The shutdown thread for the queue. We have to unregistrer it
+     * when we shutdown the database, or else the GC cannot remove it.
+     */
+    private Thread shutdownThread;
 
     /**
      * Constructs a message queue instance that is not controled by
@@ -116,7 +122,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
         // 'shutdownhook' is called when the JVM shutsdown.
         // Used here to make sure we shutdown properly.
-        Runtime.getRuntime().addShutdownHook(new Thread() {
+        shutdownThread = new Thread() {
             public void run() {
                 logger.info("thread calls shutdown");
 
@@ -134,7 +140,9 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
                 logger.info("thread stoped. Connection was closed? " + closed);
             }
-        });
+        };
+
+        Runtime.getRuntime().addShutdownHook(shutdownThread);
     }
 
 
@@ -155,7 +163,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         }
 
         try {
-            PreparedStatement ps = null;
+            PreparedStatement ps;
             if (b != null) {
                 ps = conn.prepareStatement("INSERT INTO message (body, time, read, object) VALUES(?, ?, ?, ?)");
                 ps.setBinaryStream(4, new ByteArrayInputStream(b), b.length);
@@ -438,7 +446,14 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             logger.error(e);
         }
 
+        // shutdown schedular
         shutdownAndAwaitTermination(scheduler);
+
+        // unreg shutdown thread
+        if (shutdownThread != null) {
+            Runtime.getRuntime().removeShutdownHook(shutdownThread);
+            shutdownThread = null;
+        }
     }
 
     // 'QueueMaintainers' are 2 background threads. 
