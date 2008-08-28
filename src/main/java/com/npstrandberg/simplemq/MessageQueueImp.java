@@ -144,15 +144,15 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         }
 
         byte[] b = null;
-            if (messageInput.getObject() != null) {
-                b = Utils.serialize(messageInput.getObject());
+        if (messageInput.getObject() != null) {
+            b = Utils.serialize(messageInput.getObject());
 
-                // Check if the byte array  can fit in the 'object' column.
-                // the 'object' column is a BIGINT and has the same max size as Integer.MAX_VALUE
-                if (b.length > Integer.MAX_VALUE) {
-                    throw new IllegalArgumentException("The Object is to large, it can only be " + Integer.MAX_VALUE + " bytes.");
-                }
+            // Check if the byte array  can fit in the 'object' column.
+            // the 'object' column is a BIGINT and has the same max size as Integer.MAX_VALUE
+            if (b.length > Integer.MAX_VALUE) {
+                throw new IllegalArgumentException("The Object is to large, it can only be " + Integer.MAX_VALUE + " bytes.");
             }
+        }
 
         try {
             PreparedStatement ps = null;
@@ -160,7 +160,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
                 ps = conn.prepareStatement("INSERT INTO message (body, time, read, object) VALUES(?, ?, ?, ?)");
                 ps.setBinaryStream(4, new ByteArrayInputStream(b), b.length);
             } else {
-                 ps = conn.prepareStatement("INSERT INTO message (body, time, read) VALUES(?, ?, ?)");
+                ps = conn.prepareStatement("INSERT INTO message (body, time, read) VALUES(?, ?, ?)");
             }
             ps.setString(1, messageInput.getBody());
             ps.setLong(2, System.nanoTime());
@@ -256,6 +256,41 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         return messages;
     }
 
+    public boolean delete(List<Message> messages) {
+
+        try {
+            conn.setAutoCommit(false);
+            Statement stmt = conn.createStatement();
+
+            for (Message message : messages) {
+                if (!(message instanceof MessageWrapper)) {
+                    throw new IllegalArgumentException("This instance of 'Message' is not valid.");
+                }
+
+                stmt.addBatch("DELETE FROM message WHERE id=" + message.getId());
+            }
+
+            int[] updateCounts = stmt.executeBatch();
+
+            // Have we deleted them all
+            if (updateCounts.length == messages.size()) {
+                return true;
+            } else {
+                logger.error("Not all Messages was deleted! Only " + updateCounts.length + " out of " + messages.size() + " msg was deleted!");
+            }
+
+        } catch (SQLException e) {
+            logger.error(e);
+        } finally {
+            try {
+                conn.setAutoCommit(true);
+            } catch (SQLException e) {
+                logger.error(e);
+            }
+        }
+
+        return false;
+    }
 
     public boolean delete(Message message) {
 

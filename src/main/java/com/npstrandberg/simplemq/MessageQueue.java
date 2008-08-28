@@ -69,6 +69,14 @@ public interface MessageQueue {
     boolean delete(Message message);
 
     /**
+     * Deletes all the Messages in the List from the message queue
+     *
+     * @param messages
+     * @return true - if the message was deleted succesfully
+     */
+    boolean delete(List<Message> messages);
+
+    /**
      * Returns the copy/clone of the MessageQueueConfig used to create this message queue.
      * This is the only way to change this queues config at runtime
      *
