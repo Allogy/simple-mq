@@ -85,7 +85,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         this.queueConfig = (MessageQueueConfig) Utils.copy(queueConfig);
 
         try {
-            Class.forName("org.hsqldb.jdbcDriver");
+            Class.forName("org.hsqldb.jdbcDriver").newInstance();
 
 
             if (queueConfig instanceof PersistentMessageQueueConfig) {
@@ -103,6 +103,10 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         } catch (ClassNotFoundException e) {
             logger.error(e);
         } catch (SQLException e) {
+            logger.error(e);
+        } catch (IllegalAccessException e) {
+            logger.error(e);
+        } catch (InstantiationException e) {
             logger.error(e);
         }
 
@@ -139,20 +143,28 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             throw new NullPointerException("The messageInput cannot be 'null'");
         }
 
-        try {
-            PreparedStatement ps = conn.prepareStatement("INSERT INTO message (object, body, time, read) VALUES(?, ?, ?, ?)");
-            byte[] b = Utils.serialize(messageInput.getObject());
+        byte[] b = null;
+            if (messageInput.getObject() != null) {
+                b = Utils.serialize(messageInput.getObject());
 
-            // Check if the byte array  can fit in the 'object' column.
-            // the 'object' column is a BIGINT and has the same max size as Integer.MAX_VALUE
-            if (b.length > Integer.MAX_VALUE) {
-                throw new IllegalArgumentException("The Object is to large, it can only be " + Integer.MAX_VALUE + " bytes.");
+                // Check if the byte array  can fit in the 'object' column.
+                // the 'object' column is a BIGINT and has the same max size as Integer.MAX_VALUE
+                if (b.length > Integer.MAX_VALUE) {
+                    throw new IllegalArgumentException("The Object is to large, it can only be " + Integer.MAX_VALUE + " bytes.");
+                }
             }
 
-            ps.setBinaryStream(1, new ByteArrayInputStream(b), b.length);
-            ps.setString(2, messageInput.getBody());
-            ps.setLong(3, System.nanoTime());
-            ps.setBoolean(4, false);
+        try {
+            PreparedStatement ps = null;
+            if (b != null) {
+                ps = conn.prepareStatement("INSERT INTO message (body, time, read, object) VALUES(?, ?, ?, ?)");
+                ps.setBinaryStream(4, new ByteArrayInputStream(b), b.length);
+            } else {
+                 ps = conn.prepareStatement("INSERT INTO message (body, time, read) VALUES(?, ?, ?)");
+            }
+            ps.setString(1, messageInput.getBody());
+            ps.setLong(2, System.nanoTime());
+            ps.setBoolean(3, false);
             ps.executeUpdate();
             ps.close();
 
@@ -229,7 +241,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
                 MessageWrapper mw = new MessageWrapper();
                 mw.id = id;
                 mw.body = body;
-                mw.object = Utils.deserialize(is);
+                if (is != null) mw.object = Utils.deserialize(is);
 
                 messages.add(mw);
             }
