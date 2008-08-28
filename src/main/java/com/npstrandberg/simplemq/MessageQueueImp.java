@@ -145,6 +145,17 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         Runtime.getRuntime().addShutdownHook(shutdownThread);
     }
 
+    
+    public boolean send(List<MessageInput> messageInputs) {
+        boolean success = true;
+
+        for (MessageInput messageInput : messageInputs) {
+            if (send(messageInput) != true) success = false;
+        }
+
+        return success;
+
+    }
 
     public boolean send(MessageInput messageInput) {
         if (messageInput == null) {
@@ -193,6 +204,11 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         } else {
             return null;
         }
+    }
+
+
+    public List<Message> receiveAndDelete(int limit) {
+        return receiveInternal(limit, true);
     }
 
 

@@ -35,20 +35,22 @@ public interface MessageQueue {
      */
     boolean send(MessageInput messageInput);
 
+
+    /**
+     * Add a list of messages to the message queue
+     *
+     * @param messageInputs
+     * @return true - if the messages was added succesfully
+     */
+    boolean send(List<MessageInput> messageInputs);
+    
+
     /**
      * A nonblocking recieve of the "top" message of the message Queue
      *
      * @return a Message or null - if there is no messages in the message queue
      */
     Message receive();
-
-
-    /**
-     * A nonblocking recieve and immediate deletion of the "top" message of the message Queue
-     *
-     * @return a Message or null - if there is no messages in the message queue
-     */
-    Message receiveAndDelete();
 
 
     /**
@@ -60,6 +62,24 @@ public interface MessageQueue {
      */
     List<Message> receive(int no);
 
+
+    /**
+     * A nonblocking recieve and immediate deletion of the "top" message of the message Queue
+     *
+     * @return a Message or null - if there is no messages in the message queue
+     */
+    Message receiveAndDelete();
+
+
+    /**
+     * A nonblocking recieve and immediate deletion of the "top" message of the message Queue
+     *
+     * @param no
+     * @return a List of Messages or an empty List - if there is no messages in the message queue
+     */
+    List<Message> receiveAndDelete(int no);
+
+
     /**
      * Deletes the Message from the message queue
      *
@@ -68,6 +88,7 @@ public interface MessageQueue {
      */
     boolean delete(Message message);
 
+    
     /**
      * Deletes all the Messages in the List from the message queue
      *
