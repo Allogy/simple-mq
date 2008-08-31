@@ -43,7 +43,7 @@ public interface MessageQueue {
      * @return true - if the messages was added succesfully
      */
     boolean send(List<MessageInput> messageInputs);
-    
+
 
     /**
      * A nonblocking recieve of the "top" message of the message Queue
@@ -88,7 +88,7 @@ public interface MessageQueue {
      */
     boolean delete(Message message);
 
-    
+
     /**
      * Deletes all the Messages in the List from the message queue
      *
