@@ -145,7 +145,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         Runtime.getRuntime().addShutdownHook(shutdownThread);
     }
 
-    
+
     public boolean send(List<MessageInput> messageInputs) {
         boolean success = true;
 
