@@ -17,23 +17,26 @@ package com.npstrandberg.simplemq;
 
 import junit.framework.TestCase;
 import org.junit.Test;
+import static org.junit.Assert.assertNotSame;
+import static org.junit.Assert.assertFalse;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.io.ByteArrayInputStream;
+import java.util.ArrayList;
 
 
-public class TestUtils extends TestCase {
+public class TestUtils  {
 
-    /*
+
     @Test(expected = IllegalArgumentException.class)
     public void testSerialize() {
-        ArrayList list = new ArrayList();
+        ArrayList<Bar> list = new ArrayList<Bar>();
         list.add(new Bar());
         Utils.serialize(list);
     }
-    */
-
+    
 
     @Test
     public void testCopy() {
