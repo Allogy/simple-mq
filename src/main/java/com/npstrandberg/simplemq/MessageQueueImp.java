@@ -50,7 +50,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
      * The shutdown thread for the queue. We have to unregistrer it
      * when we shutdown the database, or else the GC cannot remove it.
      */
-    private Thread shutdownThread;
+    private transient Thread shutdownThread;
 
     /**
      * Constructs a message queue instance that is not controled by
