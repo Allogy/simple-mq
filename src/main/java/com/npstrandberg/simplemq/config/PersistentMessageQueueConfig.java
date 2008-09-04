@@ -44,7 +44,7 @@ public class PersistentMessageQueueConfig extends MessageQueueConfig {
      * Using 'cached' helps prevent out of memory exception
      * when working with many messages in the queues .
      *
-     * @url http://hsqldb.org/doc/guide/ch01.html#N1023C
+     * @link http://hsqldb.org/doc/guide/ch01.html#N1023C
      */
     private final boolean cached;
 
@@ -59,7 +59,7 @@ public class PersistentMessageQueueConfig extends MessageQueueConfig {
      * Indicates that the changes to the database that have been logged are synched
      * to the file system once every 'databaseWriteDelay' milliseconds.
      *
-     * @url http://hsqldb.org/doc/guide/ch04.html#N10D67
+     * @link http://hsqldb.org/doc/guide/ch04.html#N10D67
      */
     private final int databaseWriteDelay;
 
