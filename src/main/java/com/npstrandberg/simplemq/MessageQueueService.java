@@ -49,7 +49,7 @@ public final class MessageQueueService {
 
     /**
      * If a queue by the name of 'queueName' allready excists - a reference to that queue is returned.
-     * If no queue is found and 'isPersistent' is set to 'true' - a new "isPersistent" queue is created with the name 'queueName' and a
+     * If no queue is found and 'Persistent' is set to 'true' - a new "Persistent" queue is created with the name 'queueName' and a
      * default {@link PersistentMessageQueueConfig} or else a "in-memory" queue is created with the name 'queueName' and a default {@link MessageQueueConfig}.
      *
      * @param queueName  - the name of the queue
@@ -67,7 +67,7 @@ public final class MessageQueueService {
     /**
      * If a queue by the name of 'queueName' allready excists - a reference to that queue is returned.
      * If no queue is found and 'config' is an instance of {@link com.npstrandberg.simplemq.config.PersistentMessageQueueConfig}
-     * - a new "isPersistent" queue is created with the name 'queueName'. Or if 'config' is an instance of
+     * - a new "Persistent" queue is created with the name 'queueName'. Or if 'config' is an instance of
      * {@link com.npstrandberg.simplemq.config.MessageQueueConfig} - a new "in-memory" queue is created
      * with the name 'queueName'.
      * <p/>
@@ -99,7 +99,7 @@ public final class MessageQueueService {
 
     /**
      * Deletes a message queue and all remaning messages in it.
-     * If it is a "isPersistent" queue all files is also deleted.
+     * If it is a "Persistent" queue all files is also deleted.
      *
      * @param queueName
      * @return true - if the deletion was successfull
