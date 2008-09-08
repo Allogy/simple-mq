@@ -20,7 +20,7 @@ import java.io.Serializable;
 
 /**
  * The MessageQueueConfig is used to configure a "in memory" {@link com.npstrandberg.simplemq.MessageQueue}.
- * For at "isPersistent" MessageQueue, use {@link com.npstrandberg.simplemq.config.PersistentMessageQueueConfig}
+ * For at "Persistent" MessageQueue, use {@link com.npstrandberg.simplemq.config.PersistentMessageQueueConfig}
  *
  * @author Niels Peter Strandberg
  * @see com.npstrandberg.simplemq.MessageQueueService#getMessageQueue(String, MessageQueueConfig)

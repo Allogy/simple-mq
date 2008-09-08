@@ -16,7 +16,7 @@
 package com.npstrandberg.simplemq.config;
 
 /**
- * The PersistentMessageQueueConfig is used to configure a "isPersistent" {@link com.npstrandberg.simplemq.MessageQueue}.
+ * The PersistentMessageQueueConfig is used to configure a "Persistent" {@link com.npstrandberg.simplemq.MessageQueue}.
  * For a "in memory" MessageQueue, use {@link MessageQueueConfig}.
  *
  * @author Niels Peter Strandberg
