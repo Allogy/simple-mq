@@ -20,7 +20,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Job
+ * A Job can be serialized and put on the queue. It implements Runnable,
+ * so the reciever can run then Job in a Thread.
  *
  * @author Niels Peter Strandberg
  */
