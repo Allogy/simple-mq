@@ -46,14 +46,14 @@ public class PersistentMessageQueueConfig extends MessageQueueConfig {
      *
      * @link http://hsqldb.org/doc/guide/ch01.html#N1023C
      */
-    private final boolean cached;
+    private boolean cached;
 
     /**
      * The file path for the cache files
      * When using relative paths, these paths will be taken relative to the directory in which
      * the shell command to start the Java Virtual Machine was executed
      */
-    private final String databaseDirectory;
+    private String databaseDirectory;
 
     /**
      * Indicates that the changes to the database that have been logged are synched
@@ -61,7 +61,7 @@ public class PersistentMessageQueueConfig extends MessageQueueConfig {
      *
      * @link http://hsqldb.org/doc/guide/ch04.html#N10D67
      */
-    private final int databaseWriteDelay;
+    private int databaseWriteDelay;
 
     /**
      * Constructs a new PersistentMessageQueueConfig with default values
@@ -71,27 +71,6 @@ public class PersistentMessageQueueConfig extends MessageQueueConfig {
         databaseWriteDelay = DEFAULT_DB_WRITE_DELAY;
         databaseDirectory = DEFAULT_DB_DIR;
         cached = DEFAULT_CACHED;
-    }
-
-    /**
-     * Constructs a new PersistentMessageQueueConfig
-     *
-     * @param messageReviveTime
-     * @param messageRemoveTime
-     * @param reviveNonDeletedMessagsThreadDelay
-     *
-     * @param deleteOldMessagesThreadDelay
-     * @param databaseDirectory
-     * @param databaseWriteDelay
-     * @param cached
-     */
-    public PersistentMessageQueueConfig(int messageReviveTime, int messageRemoveTime,
-                                        int reviveNonDeletedMessagsThreadDelay, int deleteOldMessagesThreadDelay, String databaseDirectory,
-                                        int databaseWriteDelay, boolean cached) {
-        super(messageReviveTime, messageRemoveTime, reviveNonDeletedMessagsThreadDelay, deleteOldMessagesThreadDelay);
-        this.databaseDirectory = databaseDirectory;
-        this.databaseWriteDelay = databaseWriteDelay;
-        this.cached = cached;
     }
 
 
@@ -108,4 +87,47 @@ public class PersistentMessageQueueConfig extends MessageQueueConfig {
     public boolean isCached() {
         return cached;
     }
+
+
+    public PersistentMessageQueueConfig setCached(boolean cached) {
+        this.cached = cached;
+        return this;
+    }
+
+
+    public PersistentMessageQueueConfig setDatabaseDirectory(String databaseDirectory) {
+        this.databaseDirectory = databaseDirectory;
+        return this;
+    }
+
+
+    public PersistentMessageQueueConfig setDatabaseWriteDelay(int databaseWriteDelay) {
+        this.databaseWriteDelay = databaseWriteDelay;
+        return this;
+    }
+
+
+    public PersistentMessageQueueConfig setMessageReviveTime(int messageReviveTime) {
+        super.setMessageReviveTime(messageReviveTime);
+        return this;
+    }
+
+
+    public PersistentMessageQueueConfig setMessageRemoveTime(int messageRemoveTime) {
+        super.setMessageRemoveTime(messageRemoveTime);
+        return this;
+    }
+
+
+    public PersistentMessageQueueConfig setDeleteOldMessagesThreadDelay(int deleteOldMessagesThreadDelay) {
+        super.setDeleteOldMessagesThreadDelay(deleteOldMessagesThreadDelay);
+        return this;
+    }
+
+
+    public PersistentMessageQueueConfig setReviveNonDeletedMessagsThreadDelay(int reviveNonDeletedMessagsThreadDelay) {
+        super.setReviveNonDeletedMessagsThreadDelay(reviveNonDeletedMessagsThreadDelay);
+        return this;
+    }
+
 }

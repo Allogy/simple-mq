@@ -4,7 +4,7 @@
     <groupId>com.npstrandberg.simplemq</groupId>
     <artifactId>simplemq</artifactId>
     <packaging>jar</packaging>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.2-SNAPSHOT</version>
     <name>simple-mq</name>
     <url>http://code.google.com/p/simple-mq/</url>
     <description>A simple message queue in Java</description>

@@ -52,13 +52,13 @@ public class MessageQueueConfig implements Serializable {
      * The delay in seconds between checks by the background Thread that looks for messages
      * that has not been read and is to old using the 'messageRemoveTime'.
      */
-    private final int deleteOldMessagesThreadDelay;
+    private int deleteOldMessagesThreadDelay;
 
     /**
      * Indicate the delay in seconds between checks by the background Thread that looks for messages
      * that has been read but not deleted for 'messageReviveTime' ago.
      */
-    private final int reviveNonDeletedMessagsThreadDelay;
+    private int reviveNonDeletedMessagsThreadDelay;
 
     /**
      * The no of seconds the message should be in the queue before it is deleted.
@@ -81,22 +81,6 @@ public class MessageQueueConfig implements Serializable {
         deleteOldMessagesThreadDelay = DEFAULT_DELETE_THREAD_DELAY;
     }
 
-    /**
-     * Constructs a new MessageQueueConfig
-     *
-     * @param messageReviveTime
-     * @param messageRemoveTime
-     * @param reviveNonDeletedMessagsThreadDelay
-     *
-     * @param deleteOldMessagesThreadDelay
-     */
-    public MessageQueueConfig(int messageReviveTime, int messageRemoveTime, int reviveNonDeletedMessagsThreadDelay, int deleteOldMessagesThreadDelay) {
-        this.messageReviveTime = messageReviveTime;
-        this.messageRemoveTime = messageRemoveTime;
-        this.reviveNonDeletedMessagsThreadDelay = reviveNonDeletedMessagsThreadDelay;
-        this.deleteOldMessagesThreadDelay = deleteOldMessagesThreadDelay;
-    }
-
 
     public int getMessageReviveTime() {
         return messageReviveTime;
@@ -108,16 +92,6 @@ public class MessageQueueConfig implements Serializable {
     }
 
 
-    public void setMessageReviveTime(int messageReviveTime) {
-        this.messageReviveTime = messageReviveTime;
-    }
-
-
-    public void setMessageRemoveTime(int messageRemoveTime) {
-        this.messageRemoveTime = messageRemoveTime;
-    }
-
-
     public int getReviveNonDeletedMessagsThreadDelay() {
         return reviveNonDeletedMessagsThreadDelay;
     }
@@ -126,5 +100,28 @@ public class MessageQueueConfig implements Serializable {
     public int getDeleteOldMessagesThreadDelay() {
         return deleteOldMessagesThreadDelay;
     }
+
+    public MessageQueueConfig setMessageReviveTime(int messageReviveTime) {
+        this.messageReviveTime = messageReviveTime;
+        return this;
+    }
+
+
+    public MessageQueueConfig setMessageRemoveTime(int messageRemoveTime) {
+        this.messageRemoveTime = messageRemoveTime;
+        return this;
+    }
+
+    public MessageQueueConfig setDeleteOldMessagesThreadDelay(int deleteOldMessagesThreadDelay) {
+        this.deleteOldMessagesThreadDelay = deleteOldMessagesThreadDelay;
+        return this;
+    }
+
+
+    public MessageQueueConfig setReviveNonDeletedMessagsThreadDelay(int reviveNonDeletedMessagsThreadDelay) {
+        this.reviveNonDeletedMessagsThreadDelay = reviveNonDeletedMessagsThreadDelay;
+        return this;
+    }
+
 }
 

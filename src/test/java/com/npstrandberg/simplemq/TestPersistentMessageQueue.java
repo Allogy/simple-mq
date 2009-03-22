@@ -38,15 +38,11 @@ public class TestPersistentMessageQueue {
     @Before
     public void setUp() {
 
-        PersistentMessageQueueConfig config = new PersistentMessageQueueConfig(
-                10,
-                30,
-                1,
-                1,
-                DEFAULT_DB_DIR,
-                DEFAULT_DB_WRITE_DELAY,
-                DEFAULT_CACHED
-        );
+        PersistentMessageQueueConfig config = new PersistentMessageQueueConfig()
+                .setMessageReviveTime(10)
+                .setMessageRemoveTime(30)
+                .setReviveNonDeletedMessagsThreadDelay(1)
+                .setDeleteOldMessagesThreadDelay(1);
 
         queue = MessageQueueService.getMessageQueue(TEST_DATABASE, config);
         assertFalse(queue.deleted());
@@ -140,7 +136,7 @@ public class TestPersistentMessageQueue {
 
     @Test
     public void deleteQueueWithWrongName() {
-       assertFalse(MessageQueueService.deleteMessageQueue("sdfgfsdgfsd"));
+        assertFalse(MessageQueueService.deleteMessageQueue("sdfgfsdgfsd"));
     }
 
     @After

@@ -150,7 +150,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         boolean success = true;
 
         for (MessageInput messageInput : messageInputs) {
-            if (send(messageInput) != true) success = false;
+            if (!send(messageInput)) success = false;
         }
 
         return success;

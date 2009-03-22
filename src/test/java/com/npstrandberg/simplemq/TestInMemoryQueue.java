@@ -6,12 +6,11 @@ import org.junit.After;
 import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
-import org.hamcrest.Matcher;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.io.Serializable;
 
 
 public class TestInMemoryQueue {
@@ -60,7 +59,7 @@ public class TestInMemoryQueue {
         }
         {
             Message msg = queue.receive();
-            assertEquals((String) msg.getObject(), "there");
+            assertEquals(msg.getObject(), "there");
             queue.delete(msg);
             assertEquals(0, queue.messageCount());
         }
@@ -85,7 +84,7 @@ public class TestInMemoryQueue {
 
     @Test
     public void testSendListOfMessages() {
-        
+
         List<MessageInput> list = new ArrayList<MessageInput>();
         list.add(new MessageInput("hello"));
         list.add(new MessageInput("hello2"));
@@ -100,7 +99,7 @@ public class TestInMemoryQueue {
 
     }
 
-     @Test
+    @Test
     public void testDeleteListOfMessages() {
 
         List<MessageInput> list = new ArrayList<MessageInput>();
