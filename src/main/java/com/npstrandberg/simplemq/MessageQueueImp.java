@@ -90,18 +90,19 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         this.queueName = queueName;
         this.queueConfig = (MessageQueueConfig) Utils.copy(queueConfig);
 
+        boolean hsqldbapplog  = queueConfig.getHsqldbapplog();
+
         try {
             Class.forName("org.hsqldb.jdbcDriver").newInstance();
-
 
             if (queueConfig instanceof PersistentMessageQueueConfig) {
                 PersistentMessageQueueConfig pqc = (PersistentMessageQueueConfig) queueConfig;
                 String cacheDirectory = (pqc.getDatabaseDirectory() == null) ? "" : pqc.getDatabaseDirectory();
 
                 conn = DriverManager.getConnection("jdbc:hsqldb:file:" + cacheDirectory + "queues/" + queueName
-                        + "/" + queueName, "sa", "");
+                        + "/" + queueName + (hsqldbapplog ? ";hsqldb.applog=1" : ""), "sa", "");
             } else {
-                conn = DriverManager.getConnection("jdbc:hsqldb:mem:" + queueName, "sa", "");
+                conn = DriverManager.getConnection("jdbc:hsqldb:mem:" + queueName + (hsqldbapplog ? ";hsqldb.applog=1" : ""), "sa", "");
             }
 
             createTableAndIndex();

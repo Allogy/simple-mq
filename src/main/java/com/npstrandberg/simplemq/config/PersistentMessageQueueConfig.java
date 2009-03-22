@@ -130,4 +130,9 @@ public class PersistentMessageQueueConfig extends MessageQueueConfig {
         return this;
     }
 
+    public PersistentMessageQueueConfig setHsqldbapplog(boolean hsqldbapplog) {
+        super.setHsqldbapplog(hsqldbapplog);
+        return this;
+    }
+
 }

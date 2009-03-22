@@ -70,6 +70,11 @@ public class MessageQueueConfig implements Serializable {
      */
     private int messageReviveTime;
 
+    /**
+     * Set to true results in events related to persistence to be logged, including any failures. The events are logged in a file ending with .app.log
+     */
+    private boolean hsqldbapplog;
+
 
     /**
      * Constructs a new MessageQueueConfig with default values
@@ -123,5 +128,13 @@ public class MessageQueueConfig implements Serializable {
         return this;
     }
 
+    public boolean getHsqldbapplog() {
+        return hsqldbapplog;
+    }
+
+    public MessageQueueConfig setHsqldbapplog(boolean hsqldbapplog) {
+        this.hsqldbapplog = hsqldbapplog;
+        return this;
+    }
 }
 
