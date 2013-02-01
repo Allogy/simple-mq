@@ -64,6 +64,21 @@ public interface MessageQueue {
 
 
     /**
+     * A nonblocking peek of the "top" message of the message Queue
+     *
+     * @return a Message or null - if there is no messages in the message queue
+     */
+    Message peek();
+
+    /**
+     * A nonblocking peek of the first 'no' messages of the message Queue
+     *
+     * @return a Message or null - if there is no messages in the message queue
+     */
+    List<Message> peek(int no);
+
+
+    /**
      * A nonblocking recieve and immediate deletion of the "top" message of the message Queue
      *
      * @return a Message or null - if there is no messages in the message queue

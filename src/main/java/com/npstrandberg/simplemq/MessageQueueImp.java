@@ -15,16 +15,16 @@
  */
 package com.npstrandberg.simplemq;
 
-import com.npstrandberg.simplemq.config.MessageQueueConfig;
-import com.npstrandberg.simplemq.config.PersistentMessageQueueConfig;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.io.Serializable;
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -34,10 +34,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
+import com.npstrandberg.simplemq.config.MessageQueueConfig;
+import com.npstrandberg.simplemq.config.PersistentMessageQueueConfig;
+
 
 public class MessageQueueImp implements MessageQueue, Serializable {
-
-    private transient static Log logger = LogFactory.getLog(MessageQueueImp.class);
+	
+	private static final long serialVersionUID = 4688999278205140460L;
+	private transient static Log logger = LogFactory.getLog(MessageQueueImp.class);
     private transient final Lock lock = new ReentrantLock();
     private transient final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
     private transient Connection conn;
@@ -228,6 +235,63 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         return receiveInternal(limit, false);
     }
 
+
+    public Message peek() {
+        List<Message> messages = this.peekInternal(1);
+
+        if (messages.size() > 0) {
+            return messages.get(0);
+        } else {
+            return null;
+        }
+    }
+
+
+    public List<Message> peek(int limit) {
+        return peekInternal(limit);
+    }
+
+
+    private List<Message> peekInternal(int limit) {
+        if (limit < 1) limit = 1;
+
+        List<Message> messages = new ArrayList<Message>(limit);
+
+        try {
+
+            // 'ORDER BY time' depends on that the host computer times is always right.
+            // 'ORDER BY id' what happens with the 'id' when we hit Long.MAX_VALUE?
+            PreparedStatement ps = conn.prepareStatement("SELECT LIMIT 0 " + limit
+                    + " id, object, body FROM message WHERE read=false ORDER BY id");
+
+            // The lock is making sure, that a SELECT and DELETE/UPDATE is only
+            // done by one thread at a time.
+            lock.lock();
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                long id = rs.getLong(1);
+                InputStream is = rs.getBinaryStream(2);
+                String body = rs.getString(3);
+
+                MessageWrapper mw = new MessageWrapper();
+                mw.id = id;
+                mw.body = body;
+                if (is != null) mw.object = Utils.deserialize(is);
+
+                messages.add(mw);
+            }
+
+            ps.close();
+        } catch (SQLException e) {
+            logger.error(e);
+        } finally {
+            lock.unlock();
+        }
+
+        return messages;
+    }
 
     private List<Message> receiveInternal(int limit, boolean delete) {
         if (limit < 1) limit = 1;
@@ -583,7 +647,8 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
     // A Message returned by this queue, is an instance of MessageWrapper.
     private class MessageWrapper implements Message, Serializable {
-        private String body;
+		private static final long serialVersionUID = 7465209569623629016L;
+		private String body;
         private long id;
         private Serializable object;
 

@@ -25,7 +25,8 @@ import java.io.Serializable;
  */
 public class MessageInput implements Serializable {
 
-    private String body;
+	private static final long serialVersionUID = -1199735856685175142L;
+	private String body;
     private Serializable object;
 
     /**
