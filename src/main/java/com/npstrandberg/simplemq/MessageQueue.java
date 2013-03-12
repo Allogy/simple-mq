@@ -54,13 +54,13 @@ public interface MessageQueue {
 
 
     /**
-     * A nonblocking recieve of the first 'no' messages of the message Queue
+     * A nonblocking recieve of the first 'n' messages of the message Queue
      * The
      *
      * @param no
      * @return a List of Messages or an empty List - if there is no messages in the message queue
      */
-    List<Message> receive(int no);
+    List<Message> receive(int n);
 
 
     /**
@@ -71,11 +71,11 @@ public interface MessageQueue {
     Message peek();
 
     /**
-     * A nonblocking peek of the first 'no' messages of the message Queue
+     * A nonblocking peek of the first 'n' messages of the message Queue
      *
      * @return a Message or null - if there is no messages in the message queue
      */
-    List<Message> peek(int no);
+    List<Message> peek(int n);
 
 
     /**
@@ -92,7 +92,7 @@ public interface MessageQueue {
      * @param no
      * @return a List of Messages or an empty List - if there is no messages in the message queue
      */
-    List<Message> receiveAndDelete(int no);
+    List<Message> receiveAndDelete(int n);
 
 
     /**
