@@ -1,0 +1,8 @@
+/.idea
+/target
+/*.iml
+/etc
+/release.sh
+
+.DS_Store
+
