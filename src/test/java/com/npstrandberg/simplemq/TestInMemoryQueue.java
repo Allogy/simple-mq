@@ -125,7 +125,10 @@ public class TestInMemoryQueue {
 
 
     @After
-    public void tearDown() {
+    public void tearDown()
+    {
+        queue.shutdown();
+
         assertFalse(queue.deleted());
         MessageQueueService.deleteMessageQueue(TEST_DATABASE);
         assertTrue(queue.deleted());

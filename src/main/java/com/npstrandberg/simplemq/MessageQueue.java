@@ -145,4 +145,9 @@ public interface MessageQueue {
      * Delete this message queue and all messages it may contain
      */
     void deleteQueue();
+
+    /**
+     * Suspends all message queue operations & releases allocated resources.
+     */
+    void shutdown();
 }
