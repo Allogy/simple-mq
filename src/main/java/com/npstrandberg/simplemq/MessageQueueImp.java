@@ -149,6 +149,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             if (mq==null) {
                 log.info("already gone away");
             } else {
+                //Set shutdown to null so that shutdown will not try and unregister it (esp. since we can't, at this point)
                 mq.shutdownHook=null;
                 mq.shutdown();
             }
@@ -553,92 +554,85 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     // 'QueueMaintainers' are 2 background threads. 
     // One deletes 'to old' messages, and the other
     // 'revives' messages that has been read, but not deleted.
-    private void startQueueMaintainers() {
-
-        // delete 'to old' messages
-        final TimerTask deleteToOldMessagesRunnable = new TimerTask()
-        {
-            public
-            void run()
-            {
-                log.debug("delete old messages");
-
-                try {
-                    PreparedStatement ps = conn.prepareStatement("SELECT id FROM message WHERE time<?");
-
-                    ps.setLong(1, System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(queueConfig.getMessageRemoveTime()));
-
-                    ResultSet rs = ps.executeQuery();
-                    List<Long> ids = new ArrayList<Long>();
-
-                    while (rs.next()) {
-                        ids.add(rs.getLong(1));
-                    }
-
-                    ps.close();
-                    ps = conn.prepareStatement("DELETE FROM message WHERE id=?");
-
-                    for (Long id : ids) {
-                        ps.setLong(1, id);
-                        ps.executeUpdate();
-                        log.info("message #{} has expired", id);
-                    }
-
-                    ps.close();
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        };
-
+    private
+    void startQueueMaintainers()
+    {
         long oldDelay=TimeUnit.SECONDS.toMillis(queueConfig.getDeleteOldMessagesThreadDelay());
-        timer.schedule(deleteToOldMessagesRunnable, oldDelay, oldDelay);
-
-        // revive messages that has been read, but not deleted.
-        final TimerTask reviveRunnable = new TimerTask()
-        {
-            public
-            void run()
-            {
-                log.debug("reviving stale messages");
-
-                //!!!: This operation is technically unsafe, couldn't it be optimized to a single update command? would that make an ever-growing transaction log file?
-                try {
-                    PreparedStatement ps = conn.prepareStatement("SELECT id FROM message WHERE time<? AND read=true");
-
-                    ps.setLong(1, System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(queueConfig.getMessageReviveTime()));
-
-                    ResultSet rs = ps.executeQuery();
-                    List<Long> ids = new ArrayList<Long>();
-
-                    while (rs.next()) {
-                        ids.add(rs.getLong(1));
-                    }
-
-                    ps.close();
-
-                  if (ids.isEmpty()) {
-                      log.debug("no {} messages", queueName);
-                  } else {
-                    log.info("{} {} messages have been revived", ids.size(), queueName);
-                    ps = conn.prepareStatement("UPDATE message SET read=? WHERE id=?");
-
-                    for (Long id : ids) {
-                        ps.setBoolean(1, false);
-                        ps.setLong(2, id);
-                        ps.executeUpdate();
-                    }
-
-                    ps.close();
-                  }
-                } catch (SQLException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        };
+        timer.schedule(new DeleteOldTimerTask(this), oldDelay, oldDelay);
 
         long threadDelay=TimeUnit.SECONDS.toMillis(queueConfig.getReviveNonDeletedMessagsThreadDelay());
-        timer.schedule(reviveRunnable, threadDelay, threadDelay);
+        timer.schedule(new ReviveTimerTask(this), threadDelay, threadDelay);
+    }
+
+    private
+    void deleteOldMessages()
+    {
+        log.debug("delete old messages");
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("SELECT id FROM message WHERE time<?");
+
+            ps.setLong(1, System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(queueConfig.getMessageRemoveTime()));
+
+            ResultSet rs = ps.executeQuery();
+            List<Long> ids = new ArrayList<Long>();
+
+            while (rs.next()) {
+                ids.add(rs.getLong(1));
+            }
+
+            ps.close();
+            ps = conn.prepareStatement("DELETE FROM message WHERE id=?");
+
+            for (Long id : ids) {
+                ps.setLong(1, id);
+                ps.executeUpdate();
+                log.info("message #{} has expired", id);
+            }
+
+            ps.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private
+    void reviveStaleMessage()
+    {
+        log.debug("reviving stale messages");
+
+        //!!!: This operation is technically unsafe, couldn't it be optimized to a single update command? would that make an ever-growing transaction log file?
+        try {
+            PreparedStatement ps = conn.prepareStatement("SELECT id FROM message WHERE time<? AND read=true");
+
+            ps.setLong(1, System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(queueConfig.getMessageReviveTime()));
+
+            ResultSet rs = ps.executeQuery();
+            List<Long> ids = new ArrayList<Long>();
+
+            while (rs.next()) {
+                ids.add(rs.getLong(1));
+            }
+
+            ps.close();
+
+            if (ids.isEmpty()) {
+                log.debug("no {} messages", queueName);
+            } else {
+                log.info("{} {} messages have been revived", ids.size(), queueName);
+                ps = conn.prepareStatement("UPDATE message SET read=? WHERE id=?");
+
+                for (Long id : ids) {
+                    ps.setBoolean(1, false);
+                    ps.setLong(2, id);
+                    ps.executeUpdate();
+                }
+
+                ps.close();
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     // A Message returned by this queue, is an instance of MessageWrapper.
@@ -674,4 +668,51 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         super.finalize();
     }
 
+    private static
+    class DeleteOldTimerTask extends TimerTask
+    {
+        private final WeakReference<MessageQueueImp> messageQueue;
+
+        public
+        DeleteOldTimerTask(MessageQueueImp messageQueueImp)
+        {
+            messageQueue = new WeakReference<MessageQueueImp>(messageQueueImp);
+        }
+
+        @Override
+        public void run()
+        {
+            MessageQueueImp messageQueueImp=messageQueue.get();
+
+            if (messageQueueImp==null) {
+                log.warn("message queue has gone away");
+            } else {
+                messageQueueImp.deleteOldMessages();
+            }
+        }
+    }
+
+    private static
+    class ReviveTimerTask extends TimerTask
+    {
+        private final WeakReference<MessageQueueImp> messageQueue;
+
+        public
+        ReviveTimerTask(MessageQueueImp messageQueueImp)
+        {
+            messageQueue = new WeakReference<MessageQueueImp>(messageQueueImp);
+        }
+
+        @Override
+        public void run()
+        {
+            MessageQueueImp messageQueueImp=messageQueue.get();
+
+            if (messageQueueImp==null) {
+                log.warn("message queue has gone away");
+            } else {
+                messageQueueImp.reviveStaleMessage();
+            }
+        }
+    }
 }
