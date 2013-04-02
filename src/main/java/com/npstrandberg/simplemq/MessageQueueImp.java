@@ -180,7 +180,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
                 ps = conn.prepareStatement("INSERT INTO message (body, time, read) VALUES(?, ?, ?)");
             }
             ps.setString(1, messageInput.getBody());
-            ps.setLong(2, System.nanoTime());
+            ps.setLong(2, System.currentTimeMillis());
             ps.setBoolean(3, false);
             ps.executeUpdate();
             ps.close();
@@ -536,7 +536,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
                 try {
                     PreparedStatement ps = conn.prepareStatement("SELECT id FROM message WHERE time<?");
 
-                    ps.setLong(1, System.nanoTime() - TimeUnit.SECONDS.toNanos(queueConfig.getMessageRemoveTime()));
+                    ps.setLong(1, System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(queueConfig.getMessageRemoveTime()));
 
                     ResultSet rs = ps.executeQuery();
                     List<Long> ids = new ArrayList<Long>();
@@ -570,10 +570,11 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             public void run() {
                 log.debug("reviving stale messages");
 
+                //!!!: This operation is technically unsafe, couldn't it be optimized to a single update command? would that make an ever-growing transaction log file?
                 try {
                     PreparedStatement ps = conn.prepareStatement("SELECT id FROM message WHERE time<? AND read=true");
 
-                    ps.setLong(1, System.nanoTime() - TimeUnit.SECONDS.toNanos(queueConfig.getMessageReviveTime()));
+                    ps.setLong(1, System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(queueConfig.getMessageReviveTime()));
 
                     ResultSet rs = ps.executeQuery();
                     List<Long> ids = new ArrayList<Long>();
