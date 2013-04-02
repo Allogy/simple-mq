@@ -24,12 +24,12 @@ import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.io.Serializable;
+import java.lang.ref.WeakReference;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -42,18 +42,22 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     private static Logger log = LoggerFactory.getLogger(MessageQueue.class);
 
     private transient final Lock lock = new ReentrantLock();
-    private transient final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+
+    //???: wouldn't a timer be better here?
+    private transient final Timer timer;
     private transient Connection conn;
 
     private final MessageQueueConfig queueConfig;
     private final String queueName;
+
+    private boolean shutdown;
     private boolean deleted;
 
     /**
      * The shutdown thread for the queue. We have to unregistrer it
      * when we shutdown the database, or else the GC cannot remove it.
      */
-    private transient Thread shutdownThread;
+    private transient Thread shutdownHook;
 
     /**
      * Constructs a message queue instance that is not controled by
@@ -93,6 +97,8 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         this.queueName = queueName;
         this.queueConfig = (MessageQueueConfig) Utils.copy(queueConfig);
 
+        this.timer = new Timer(queueName+"-message-queue-timer", true);
+
         boolean hsqldbapplog  = queueConfig.getHsqldbapplog();
 
         try {
@@ -118,29 +124,36 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
         startQueueMaintainers();
 
-        // 'shutdownhook' is called when the JVM shutsdown.
+        // 'shutdownhook' is called when the JVM shuts down.
         // Used here to make sure we shutdown properly.
-        shutdownThread = new Thread() {
-            public void run() {
-                log.info("thread calls shutdown");
+        shutdownHook = new RelayVMShutdown(this);
+        Runtime.getRuntime().addShutdownHook(shutdownHook);
+    }
 
-                boolean closed = true;
+    private static
+    class RelayVMShutdown extends Thread
+    {
+        final WeakReference<MessageQueueImp> messageQueue;
 
-                try {
-                    closed = conn.isClosed();
-                } catch (SQLException e) {
-                    // ignore
-                }
+        RelayVMShutdown(MessageQueueImp messageQueue) {
+            this.messageQueue = new WeakReference<MessageQueueImp>(messageQueue);
+        }
 
-                if (!closed) {
-                    shutdown();
-                }
+        public
+        void run()
+        {
+            log.info("VM is shutting down, relaying to HSQL DB");
 
-                log.info("thread stoped. Connection was closed? " + closed);
+            MessageQueueImp mq=messageQueue.get();
+
+            if (mq==null) {
+                log.info("already gone away");
+            } else {
+                mq.shutdownHook=null;
+                mq.shutdown();
             }
         };
 
-        Runtime.getRuntime().addShutdownHook(shutdownThread);
     }
 
 
@@ -503,23 +516,37 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
     // A 'SHUTDOWN' command is send to the db, so that
     // it can flush changes and cleanup before the JVM halts.
-    private void shutdown() {
+    public
+    void shutdown()
+    {
+        if (shutdown) {
+            log.debug("{} message queue already shutdown", queueName);
+            return;
+        }
+
+        shutdown=true;
+
+        if (shutdownHook != null)
+        {
+            Runtime.getRuntime().removeShutdownHook(shutdownHook);
+            shutdownHook = null;
+        }
+
         try {
             Statement st = conn.createStatement();
             st.execute("SHUTDOWN");
             st.close();
             conn.close();
         } catch (SQLException e) {
-            throw new RuntimeException(e);
+            log.error("could not shutdown hsqldb", e);
         }
 
-        // shutdown schedular
-        shutdownAndAwaitTermination(scheduler);
+        timer.cancel();
 
-        // unreg shutdown thread
-        if (shutdownThread != null) {
-            Runtime.getRuntime().removeShutdownHook(shutdownThread);
-            shutdownThread = null;
+        try {
+            conn.isClosed();
+        } catch (SQLException e) {
+            log.warn("can not close connection", e);
         }
     }
 
@@ -529,9 +556,12 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     private void startQueueMaintainers() {
 
         // delete 'to old' messages
-        final Runnable deleteToOldMessagesRunnable = new Runnable() {
-            public void run() {
-                log.info("Delete 'to old' messages: ");
+        final TimerTask deleteToOldMessagesRunnable = new TimerTask()
+        {
+            public
+            void run()
+            {
+                log.debug("delete old messages");
 
                 try {
                     PreparedStatement ps = conn.prepareStatement("SELECT id FROM message WHERE time<?");
@@ -551,6 +581,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
                     for (Long id : ids) {
                         ps.setLong(1, id);
                         ps.executeUpdate();
+                        log.info("message #{} has expired", id);
                     }
 
                     ps.close();
@@ -560,14 +591,15 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             }
         };
 
-
-        scheduler.scheduleWithFixedDelay(deleteToOldMessagesRunnable,
-                queueConfig.getDeleteOldMessagesThreadDelay(),
-                queueConfig.getDeleteOldMessagesThreadDelay(), TimeUnit.SECONDS);
+        long oldDelay=TimeUnit.SECONDS.toMillis(queueConfig.getDeleteOldMessagesThreadDelay());
+        timer.schedule(deleteToOldMessagesRunnable, oldDelay, oldDelay);
 
         // revive messages that has been read, but not deleted.
-        final Runnable reviveRunnable = new Runnable() {
-            public void run() {
+        final TimerTask reviveRunnable = new TimerTask()
+        {
+            public
+            void run()
+            {
                 log.debug("reviving stale messages");
 
                 //!!!: This operation is technically unsafe, couldn't it be optimized to a single update command? would that make an ever-growing transaction log file?
@@ -605,45 +637,17 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             }
         };
 
-        scheduler.scheduleWithFixedDelay(reviveRunnable, queueConfig.getReviveNonDeletedMessagsThreadDelay(),
-                queueConfig.getReviveNonDeletedMessagsThreadDelay(), TimeUnit.SECONDS);
-
+        long threadDelay=TimeUnit.SECONDS.toMillis(queueConfig.getReviveNonDeletedMessagsThreadDelay());
+        timer.schedule(reviveRunnable, threadDelay, threadDelay);
     }
-
-    // Shutsdown the 2 Queue Maintainer threads.
-    private void shutdownAndAwaitTermination(ExecutorService pool) {
-
-        pool.shutdown();    // Disable new tasks from being submitted
-
-        try {
-
-            // Wait a while for existing tasks to terminate
-            if (!pool.awaitTermination(5, TimeUnit.SECONDS)) {
-                pool.shutdownNow();    // Cancel currently executing tasks
-
-                // Wait a while for tasks to respond to being cancelled
-                if (!pool.awaitTermination(5, TimeUnit.SECONDS)) {
-                    System.err.println("Pool did not terminate");
-                }
-            }
-        } catch (InterruptedException ie) {
-
-            // (Re-)Cancel if current thread also interrupted
-            pool.shutdownNow();
-
-            // Preserve interrupt status
-            Thread.currentThread().interrupt();
-        }
-    }
-
 
     // A Message returned by this queue, is an instance of MessageWrapper.
-    private class MessageWrapper implements Message, Serializable {
+    private class MessageWrapper implements Message, Serializable
+    {
 		private static final long serialVersionUID = 7465209569623629016L;
 		private String body;
         private long id;
         private Serializable object;
-
 
         public String getBody() {
             return body;
@@ -659,4 +663,15 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             return id;
         }
     }
+
+    protected
+    void finalize() throws Throwable
+    {
+        if (!shutdown) {
+            log.error("{} message queue was dereferenced without being shutdown", queueName);
+            shutdown();
+        }
+        super.finalize();
+    }
+
 }
