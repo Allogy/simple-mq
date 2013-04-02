@@ -117,6 +117,10 @@ public class TestInMemoryQueue {
 
         assertTrue(queue.delete(messages));
 
+        assertNull(queue.peek());
+        assertNull(queue.receive());
+
+        assertEquals(queue.peek(3).size(), 0);
     }
 
 
