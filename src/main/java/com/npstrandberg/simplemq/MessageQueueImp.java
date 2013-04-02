@@ -15,16 +15,16 @@
  */
 package com.npstrandberg.simplemq;
 
+import com.npstrandberg.simplemq.config.MessageQueueConfig;
+import com.npstrandberg.simplemq.config.PersistentMessageQueueConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.InputStream;
 import java.io.Serializable;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -34,17 +34,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-
-import com.npstrandberg.simplemq.config.MessageQueueConfig;
-import com.npstrandberg.simplemq.config.PersistentMessageQueueConfig;
-
 
 public class MessageQueueImp implements MessageQueue, Serializable {
 	
 	private static final long serialVersionUID = 4688999278205140460L;
-	private transient static Log logger = LogFactory.getLog(MessageQueueImp.class);
+
+    private static Logger log = LoggerFactory.getLogger(MessageQueue.class);
+
     private transient final Lock lock = new ReentrantLock();
     private transient final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
     private transient Connection conn;
@@ -114,14 +110,8 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
             createTableAndIndex();
 
-        } catch (ClassNotFoundException e) {
-            logger.error(e);
-        } catch (SQLException e) {
-            logger.error(e);
-        } catch (IllegalAccessException e) {
-            logger.error(e);
-        } catch (InstantiationException e) {
-            logger.error(e);
+        } catch (Exception e) {
+            throw new RuntimeException("unable to initialize "+queueName+" message queue", e);
         }
 
         setWriteDelay();
@@ -132,7 +122,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         // Used here to make sure we shutdown properly.
         shutdownThread = new Thread() {
             public void run() {
-                logger.info("thread calls shutdown");
+                log.info("thread calls shutdown");
 
                 boolean closed = true;
 
@@ -146,7 +136,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
                     shutdown();
                 }
 
-                logger.info("thread stoped. Connection was closed? " + closed);
+                log.info("thread stoped. Connection was closed? " + closed);
             }
         };
 
@@ -197,10 +187,8 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
             return true;
         } catch (SQLException e) {
-            logger.error(e);
+            throw new RuntimeException("unable to save message", e);
         }
-
-        return false;
     }
 
 
@@ -285,7 +273,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
             ps.close();
         } catch (SQLException e) {
-            logger.error(e);
+            throw new RuntimeException(e);
         } finally {
             lock.unlock();
         }
@@ -337,7 +325,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
             ps.close();
         } catch (SQLException e) {
-            logger.error(e);
+            throw new RuntimeException(e);
         } finally {
             lock.unlock();
         }
@@ -365,16 +353,16 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             if (updateCounts.length == messages.size()) {
                 return true;
             } else {
-                logger.error("Not all Messages was deleted! Only " + updateCounts.length + " out of " + messages.size() + " msg was deleted!");
+                log.error("Not all Messages was deleted! Only {} out of {} were deleted!", updateCounts.length, messages.size());
             }
 
         } catch (SQLException e) {
-            logger.error(e);
+            throw new RuntimeException(e);
         } finally {
             try {
                 conn.setAutoCommit(true);
             } catch (SQLException e) {
-                logger.error(e);
+                log.error("unable to restore autocommit", e);
             }
         }
 
@@ -398,10 +386,8 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
             return (i > 0);
         } catch (SQLException e) {
-            logger.error(e);
+            throw new RuntimeException(e);
         }
-
-        return false;
     }
 
 
@@ -441,7 +427,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             count = rs.getLong(1);
             ps.close();
         } catch (SQLException e) {
-            logger.error(e);
+            throw new RuntimeException(e);
         }
 
         return count;
@@ -510,7 +496,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
                 st.execute("SET WRITE_DELAY " + pqc.getDatabaseWriteDelay() + " MILLIS");
                 st.close();
             } catch (SQLException e) {
-                logger.error(e);
+                throw new RuntimeException(e);
             }
         }
     }
@@ -524,7 +510,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             st.close();
             conn.close();
         } catch (SQLException e) {
-            logger.error(e);
+            throw new RuntimeException(e);
         }
 
         // shutdown schedular
@@ -545,7 +531,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         // delete 'to old' messages
         final Runnable deleteToOldMessagesRunnable = new Runnable() {
             public void run() {
-                logger.info("Delete 'to old' messages: ");
+                log.info("Delete 'to old' messages: ");
 
                 try {
                     PreparedStatement ps = conn.prepareStatement("SELECT id FROM message WHERE time<?");
@@ -569,7 +555,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
                     ps.close();
                 } catch (SQLException e) {
-                    logger.error(e);
+                    throw new RuntimeException(e);
                 }
             }
         };
@@ -582,7 +568,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         // revive messages that has been read, but not deleted.
         final Runnable reviveRunnable = new Runnable() {
             public void run() {
-                logger.info("Do revieving: ");
+                log.debug("reviving stale messages");
 
                 try {
                     PreparedStatement ps = conn.prepareStatement("SELECT id FROM message WHERE time<? AND read=true");
@@ -597,7 +583,11 @@ public class MessageQueueImp implements MessageQueue, Serializable {
                     }
 
                     ps.close();
-                    System.out.println("" + ids.size() + " messages!");
+
+                  if (ids.isEmpty()) {
+                      log.debug("no {} messages", queueName);
+                  } else {
+                    log.info("{} {} messages have been revived", ids.size(), queueName);
                     ps = conn.prepareStatement("UPDATE message SET read=? WHERE id=?");
 
                     for (Long id : ids) {
@@ -607,8 +597,9 @@ public class MessageQueueImp implements MessageQueue, Serializable {
                     }
 
                     ps.close();
+                  }
                 } catch (SQLException e) {
-                    logger.error(e);
+                    throw new RuntimeException(e);
                 }
             }
         };
