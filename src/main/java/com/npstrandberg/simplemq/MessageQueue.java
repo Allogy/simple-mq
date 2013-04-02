@@ -57,7 +57,7 @@ public interface MessageQueue {
      * A nonblocking recieve of the first 'n' messages of the message Queue
      * The
      *
-     * @param no
+     * @param n
      * @return a List of Messages or an empty List - if there is no messages in the message queue
      */
     List<Message> receive(int n);
@@ -89,7 +89,7 @@ public interface MessageQueue {
     /**
      * A nonblocking recieve and immediate deletion of the "top" message of the message Queue
      *
-     * @param no
+     * @param n
      * @return a List of Messages or an empty List - if there is no messages in the message queue
      */
     List<Message> receiveAndDelete(int n);
