@@ -18,6 +18,7 @@ package com.npstrandberg.simplemq;
 
 import com.npstrandberg.simplemq.config.MessageQueueConfig;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -31,18 +32,17 @@ public interface MessageQueue {
      * Add a message to the message queue
      *
      * @param messageInput
-     * @return true - if the message was added succesfully
      */
-    boolean send(MessageInput messageInput);
+    void send(MessageInput messageInput);
 
 
     /**
-     * Add a list of messages to the message queue
+     * Best effort attempt to send all the provided messages. Problematic for lack of atomicity, if an exception is thrown,
+     * some messages may have already been sent.
      *
      * @param messageInputs
-     * @return true - if the messages was added succesfully
      */
-    boolean send(List<MessageInput> messageInputs);
+    void send(Collection<MessageInput> messageInputs);
 
 
     /**
@@ -99,7 +99,7 @@ public interface MessageQueue {
      * Deletes the Message from the message queue
      *
      * @param message
-     * @return true - if the message was deleted succesfully
+     * @return true - if the message was deleted, false if it did not exist
      */
     boolean delete(Message message);
 
@@ -108,7 +108,7 @@ public interface MessageQueue {
      * Deletes all the Messages in the List from the message queue
      *
      * @param messages
-     * @return true - if the message was deleted succesfully
+     * @return true - if any of the messages were deleted
      */
     boolean delete(List<Message> messages);
 

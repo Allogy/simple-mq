@@ -26,10 +26,7 @@ import java.io.InputStream;
 import java.io.Serializable;
 import java.lang.ref.WeakReference;
 import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -158,18 +155,29 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     }
 
 
-    public boolean send(List<MessageInput> messageInputs) {
-        boolean success = true;
+    public
+    void send(Collection<MessageInput> messageInputs) {
+        RuntimeException exception=null;
 
         for (MessageInput messageInput : messageInputs) {
-            if (!send(messageInput)) success = false;
+            try {
+                send(messageInput);
+            } catch (RuntimeException e) {
+                if (exception==null) {
+                    exception = e;
+                } else {
+                    log.error("error sending multiple messages", e);
+                }
+            }
         }
 
-        return success;
-
+        if (exception!=null) {
+            throw exception;
+        }
     }
 
-    public boolean send(MessageInput messageInput) {
+    public
+    void send(MessageInput messageInput) {
         if (messageInput == null) {
             throw new NullPointerException("The messageInput cannot be 'null'");
         }
@@ -199,7 +207,6 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             ps.executeUpdate();
             ps.close();
 
-            return true;
         } catch (SQLException e) {
             throw new RuntimeException("unable to save message", e);
         }

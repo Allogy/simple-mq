@@ -1,9 +1,6 @@
 package com.npstrandberg.simplemq;
 
-import static junit.framework.Assert.assertNotNull;
-import static junit.framework.Assert.assertNull;
 import org.junit.After;
-import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -11,6 +8,12 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+
+import static junit.framework.Assert.assertNotNull;
+import static junit.framework.Assert.assertNull;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 
 public class TestInMemoryQueue {
@@ -106,7 +109,7 @@ public class TestInMemoryQueue {
         list.add(new MessageInput("hello"));
         list.add(new MessageInput("hello2"));
 
-        assertTrue(queue.send(list));
+        queue.send(list);
 
         assertEquals(2, queue.messageCount());
 
