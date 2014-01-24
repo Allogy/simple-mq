@@ -47,4 +47,14 @@ public interface Message {
      * @return the internal id
      */
     long getId();
+
+    /**
+     * @return the string used to detect and automatically act upon similar/same messages in the queue, or null
+     */
+    String getDuplicateSuppressionKey();
+
+    /**
+     * @return the action that was to be performed if this message collided with another in the same message queue, or null only if the duplicate suppression key is also null
+     */
+    OnCollision getDuplicateSuppressionAction();
 }

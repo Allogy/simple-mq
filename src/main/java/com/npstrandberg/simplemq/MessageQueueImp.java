@@ -649,19 +649,37 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 		private String body;
         private long id;
         private Serializable object;
+        private String duplicateSuppressionKey;
+        private OnCollision duplicateSuppressionAction;
 
-        public String getBody() {
+        public
+        String getBody()
+        {
             return body;
         }
 
-
-        public Serializable getObject() {
+        public
+        Serializable getObject()
+        {
             return object;
         }
 
-
-        public long getId() {
+        public
+        long getId()
+        {
             return id;
+        }
+
+        public
+        String getDuplicateSuppressionKey()
+        {
+            return duplicateSuppressionKey;
+        }
+
+        public
+        OnCollision getDuplicateSuppressionAction()
+        {
+            return duplicateSuppressionAction;
         }
     }
 
