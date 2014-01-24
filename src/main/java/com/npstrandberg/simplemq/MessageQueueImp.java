@@ -111,7 +111,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
                 conn = DriverManager.getConnection("jdbc:hsqldb:mem:" + queueName + (hsqldbapplog ? ";hsqldb.applog=1" : ""), "sa", "");
             }
 
-            createTableAndIndex();
+            createOrMigrateDatabaseStructure();
 
         } catch (Exception e) {
             throw new RuntimeException("unable to initialize "+queueName+" message queue", e);
@@ -459,13 +459,16 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     }
 
 
-    private void createTableAndIndex() throws SQLException {
+    private
+    void createOrMigrateDatabaseStructure() throws SQLException
+    {
+        Statement st = conn.createStatement();
 
-        // The table may allready exsists if the queue is persistent.
-        if (tableExists("message")) return;
+        int version=readDatabaseVersion(st);
 
         String cached = "";
 
+        //NB: once set, the CACHED will be indelible, until the queue is deleted. An original design/flaw.
         if (queueConfig instanceof PersistentMessageQueueConfig) {
             PersistentMessageQueueConfig pqc = (PersistentMessageQueueConfig) queueConfig;
 
@@ -474,13 +477,72 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             }
         }
 
-        Statement st = conn.createStatement();
+        final int LATEST=1340;
 
-        st.execute("CREATE " + cached + "TABLE message (id BIGINT IDENTITY PRIMARY KEY, object LONGVARBINARY, body VARCHAR, time BIGINT, read BOOLEAN)");
-        st.execute("CREATE INDEX id_index ON message(id)");
-        st.execute("CREATE INDEX time_index ON message(time)");
-        st.execute("CREATE INDEX read_index ON message(read)");
+        switch (version)
+        {
+            case 0:
+                st.execute("CREATE " + cached + "TABLE message (id BIGINT IDENTITY PRIMARY KEY, object LONGVARBINARY, body VARCHAR, time BIGINT, read BOOLEAN)");
+                st.execute("CREATE INDEX id_index ON message(id)");
+                st.execute("CREATE INDEX time_index ON message(time)");
+                st.execute("CREATE INDEX read_index ON message(read)");
+
+            case 1330:
+                st.execute("CREATE TABLE meta (version INTEGER);");
+            case 1331:
+                st.execute("INSERT INTO TABLE meta (version) VALUES (1340);");
+
+             //---------------- new version go above this line, and should fall-through ---------------
+
+                st.execute("UPDATE meta SET version = "+LATEST+";");
+                log.info("simple-mq database updated to version {}", LATEST);
+                break;
+
+            case LATEST:
+                log.debug("simple-mq database is up-to-date");
+                break;
+
+            default:
+                log.warn("simple-mq database (on-disk) is not a supported version: {}, this is version {}", version, LATEST);
+                //TODO: maybe have an option to die here, I favor continuing...
+        }
+
         st.close();
+    }
+
+    private
+    int readDatabaseVersion(Statement st) throws SQLException
+    {
+        if (tableExists("meta"))
+        {
+            //read the integer
+            ResultSet resultSet = st.executeQuery("SELECT version FROM meta LIMIT 1;");
+            try {
+                if (resultSet.first())
+                {
+                    int retval=resultSet.getInt(1);
+                    log.debug("on-disk simple-mq database is at version {}", retval);
+                    return retval;
+                }
+                else
+                {
+                    return 1331; //aka... need the meta row.
+                }
+            } finally {
+                resultSet.close();
+            }
+        }
+        else
+        if (tableExists("message"))
+        {
+            //pre-meta table
+            return 13300;
+        }
+        else
+        {
+            //empty database
+            return 0;
+        }
     }
 
     // To check if a 'tableName' table allready exsists in the db.
