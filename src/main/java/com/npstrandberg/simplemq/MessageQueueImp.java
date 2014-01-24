@@ -193,17 +193,32 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             }
         }
 
+        long startDelay=messageInput.getStartDelay();
+        OnCollision onCollision=messageInput.getDuplicateSuppressionAction();
+
+        if (startDelay<0) startDelay=0;
+
         try {
-            PreparedStatement ps;
-            if (b != null) {
-                ps = conn.prepareStatement("INSERT INTO message (body, time, read, object) VALUES(?, ?, ?, ?)");
-                ps.setBinaryStream(4, new ByteArrayInputStream(b), b.length);
-            } else {
-                ps = conn.prepareStatement("INSERT INTO message (body, time, read) VALUES(?, ?, ?)");
-            }
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO message (body, time, read, object, dupeKey, onCollision) VALUES(?, ?, ?, ?)");
+
             ps.setString(1, messageInput.getBody());
-            ps.setLong(2, System.currentTimeMillis());
+            ps.setLong(2, System.currentTimeMillis()+startDelay);
             ps.setBoolean(3, false);
+
+            if (b == null) {
+                ps.setNull(4, Types.BLOB);
+            } else {
+                ps.setBinaryStream(4, new ByteArrayInputStream(b), b.length);
+            }
+
+            ps.setString(5, messageInput.getDuplicateSuppressionKey());
+
+            if (onCollision==null) {
+                ps.setNull(6, Types.VARCHAR);
+            } else {
+                ps.setString(6, onCollision.toString());
+            }
+
             ps.executeUpdate();
             ps.close();
 
