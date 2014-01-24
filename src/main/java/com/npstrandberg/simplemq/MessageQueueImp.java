@@ -464,7 +464,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     {
         Statement st = conn.createStatement();
 
-        int version=readDatabaseVersion(st);
+        int currentVersion=readDatabaseVersion(st);
 
         String cached = "";
 
@@ -477,9 +477,9 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             }
         }
 
-        final int LATEST=1340;
+        final int LATEST=1400;
 
-        switch (version)
+        switch (currentVersion)
         {
             case 0:
                 st.execute("CREATE " + cached + "TABLE message (id BIGINT IDENTITY PRIMARY KEY, object LONGVARBINARY, body VARCHAR, time BIGINT, read BOOLEAN)");
@@ -490,9 +490,19 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             case 1330:
                 st.execute("CREATE TABLE meta (version INTEGER);");
             case 1331:
-                st.execute("INSERT INTO TABLE meta (version) VALUES (1340);");
+                st.execute("INSERT INTO meta (version) VALUES (1340);");
 
-             //---------------- new version go above this line, and should fall-through ---------------
+            case 1340:
+                st.execute("ALTER TABLE message ADD COLUMN dupeKey VARCHAR;");
+                st.execute("ALTER TABLE message ADD COLUMN onCollision VARCHAR;");
+
+             /*
+             ---------------------------------------------------------------------------------------
+             new migrations go above this line, with *current* value of LATEST, and should fall-through.
+             Remember to then update LATEST to resemble the current version number (plus a digit for
+             some wiggle-room between versions).
+             ---------------------------------------------------------------------------------------
+              */
 
                 st.execute("UPDATE meta SET version = "+LATEST+";");
                 log.info("simple-mq database updated to version {}", LATEST);
@@ -503,7 +513,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
                 break;
 
             default:
-                log.warn("simple-mq database (on-disk) is not a supported version: {}, this is version {}", version, LATEST);
+                log.warn("simple-mq database (on-disk) is not a supported version: {}, this is version {}", currentVersion, LATEST);
                 //TODO: maybe have an option to die here, I favor continuing...
         }
 
