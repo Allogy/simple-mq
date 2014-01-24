@@ -16,15 +16,17 @@
 package com.npstrandberg.simplemq;
 
 import com.npstrandberg.simplemq.config.PersistentMessageQueueConfig;
-import static com.npstrandberg.simplemq.config.PersistentMessageQueueConfig.*;
-import static junit.framework.Assert.assertNotNull;
-import static junit.framework.Assert.assertNull;
 import org.junit.After;
-import static org.junit.Assert.*;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.Collection;
+
+import static junit.framework.Assert.assertNotNull;
+import static junit.framework.Assert.assertNull;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 
 public class TestPersistentMessageQueue {
@@ -84,20 +86,20 @@ public class TestPersistentMessageQueue {
         assertEquals(2, queue.messageCount());
 
         // test that I get the same queue instance back
-        queue = MessageQueueService.getMessageQueue(TEST_DATABASE);
+        assertTrue(queue==MessageQueueService.getMessageQueue(TEST_DATABASE));
         assertEquals(2, queue.messageCount());
 
-        // recieve 1 meesage and dont delete it.
+        // receive 1 message, but don't delete it.
         {
             Message msg = queue.receive();
             assertEquals(msg.getBody(), "hello");
             assertEquals(1, queue.messageCount());
         }
 
-        // wait for the recieved message to be revieved.
+        // wait for the received message to be revived.
         wait(2000);
 
-        // now the message should be revieved by the "revive" thread and there
+        // now the message should be revived by the "revive" thread and there
         // should therefor be 2 message in the queue again
         assertEquals(2, queue.messageCount());
 
@@ -105,7 +107,7 @@ public class TestPersistentMessageQueue {
         wait(2000);
 
         // now the "to old" thread should have remove the 2 messages from the queue
-        // and it shoulde be empty.
+        // and it should be empty.
         assertEquals(0, queue.messageCount());
 
         {

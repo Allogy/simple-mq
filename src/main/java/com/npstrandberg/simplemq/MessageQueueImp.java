@@ -624,7 +624,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             ps.close();
 
             if (ids.isEmpty()) {
-                log.debug("no {} messages", queueName);
+                log.debug("no {} messages to revive", queueName);
             } else {
                 log.info("{} {} messages have been revived", ids.size(), queueName);
                 ps = conn.prepareStatement("UPDATE message SET read=? WHERE id=?");
@@ -722,4 +722,5 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             }
         }
     }
+
 }
