@@ -127,13 +127,19 @@ public class TestInMemoryQueue {
     private
     void dupePush(String a, String b, String dupeKey, OnCollision onCollision)
     {
-        while (queue.receiveAndDelete()!=null);
+        dump();
 
         aFewRandomMessages();
         queue.send(new MessageInput(a).setDuplicateSuppressionKey(dupeKey, randomCollisionPolicy()));
         aFewRandomMessages();
         queue.send(new MessageInput(b).setDuplicateSuppressionKey(dupeKey, onCollision));
         aFewRandomMessages();
+    }
+
+    private
+    void dump()
+    {
+        while (queue.receiveAndDelete()!=null);
     }
 
     private
@@ -216,6 +222,26 @@ public class TestInMemoryQueue {
         dupePush("alpha", "beta", "exclude", OnCollision.EXCLUDE);
         Message message=queue.peek("exclude");
         assertNull(message);
+    }
+
+    @Test
+    public
+    void testDelayedStart() throws InterruptedException
+    {
+        dump();
+
+        queue.send(new MessageInput("alpha").setStartDelay(200));
+
+        assertNull(queue.peek());
+        assertTrue(queue.peek(5).isEmpty());
+        assertNull(queue.receive());
+        assertTrue(queue.receive(5).isEmpty());
+
+        Thread.sleep(400);
+
+        assertNotNull(queue.peek());
+        assertFalse(queue.peek(5).isEmpty());
+        assertNotNull(queue.receive());
     }
 
     @After
