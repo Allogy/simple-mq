@@ -71,6 +71,14 @@ public interface MessageQueue {
     Message peek();
 
     /**
+     * Returns the one message (if any) that has the provided duplicate suppression key.
+     *
+     * @param dupeSuppressionKey
+     * @return
+     */
+    Message peek(String dupeSuppressionKey);
+
+    /**
      * A nonblocking peek of the first 'n' messages of the message Queue
      *
      * @return a Message or null - if there is no messages in the message queue

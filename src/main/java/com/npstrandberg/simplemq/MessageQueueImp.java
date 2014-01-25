@@ -20,10 +20,7 @@ import com.npstrandberg.simplemq.config.PersistentMessageQueueConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.InputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.lang.ref.WeakReference;
 import java.sql.*;
 import java.util.*;
@@ -177,7 +174,8 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     }
 
     public
-    void send(MessageInput messageInput) {
+    void send(MessageInput messageInput)
+    {
         if (messageInput == null) {
             throw new NullPointerException("The messageInput cannot be 'null'");
         }
@@ -185,24 +183,62 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         byte[] b = null;
         if (messageInput.getObject() != null) {
             b = Utils.serialize(messageInput.getObject());
-
-            // Check if the byte array  can fit in the 'object' column.
-            // the 'object' column is a BIGINT and has the same max size as Integer.MAX_VALUE
-            if (b.length > Integer.MAX_VALUE) {
-                throw new IllegalArgumentException("The Object is to large, it can only be " + Integer.MAX_VALUE + " bytes.");
-            }
         }
 
         long startDelay=messageInput.getStartDelay();
+
+        if (startDelay<0)
+        {
+            startDelay=0;
+        }
+
+        long time=System.currentTimeMillis()+startDelay;
+
+        String dupeKey=messageInput.getDuplicateSuppressionKey();
         OnCollision onCollision=messageInput.getDuplicateSuppressionAction();
 
-        if (startDelay<0) startDelay=0;
+        MessageWrapper existing=null;
+
+        lock.lock();
+
+        try
+        {
+            if (dupeKey!=null)
+            {
+                existing=peek(dupeKey);
+
+                if (existing!=null) switch (onCollision)
+                {
+                    case DEMOTE : //new message is dropped, but update existing with new time
+                        touchMessage(existing, time);
+                        //fall through...
+
+                    case DROP   : //no-op, new message is dropped.
+                        log.debug("onCollision({}) drops new message on {}", onCollision, dupeKey);
+                        return; //no new message
+
+                    case EXCLUDE:
+                        log.debug("onCollision(EXCLUDE) drops both messages: {}", dupeKey);
+                        delete(existing);
+                        return; //no new message
+
+                    case REPLACE:
+                        //will delete existing later
+                        break;
+
+                    case SWAP:
+                        time=existing.getTime();
+                        //will delete existing later
+                        break;
+                }
+            }
+
 
         try {
-            PreparedStatement ps = conn.prepareStatement("INSERT INTO message (body, time, read, object, dupeKey, onCollision) VALUES(?, ?, ?, ?)");
+            PreparedStatement ps = conn.prepareStatement("INSERT INTO message (body, time, read, object, dupeKey, onCollision) VALUES(?, ?, ?, ?, ?, ?)");
 
             ps.setString(1, messageInput.getBody());
-            ps.setLong(2, System.currentTimeMillis()+startDelay);
+            ps.setLong(2, time);
             ps.setBoolean(3, false);
 
             if (b == null) {
@@ -224,6 +260,32 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
         } catch (SQLException e) {
             throw new RuntimeException("unable to save message", e);
+        }
+
+            if (existing!=null && (onCollision==OnCollision.SWAP || onCollision==OnCollision.REPLACE))
+            {
+                log.debug("onCollision({}) deletes exisitng message: {}", onCollision, dupeKey);
+                delete(existing);
+            }
+
+        }
+        finally
+        {
+            lock.unlock();
+        }
+    }
+
+    private
+    void touchMessage(MessageWrapper existing, long time)
+    {
+        try {
+            PreparedStatement updateInventory = conn.prepareStatement("UPDATE message SET time=? WHERE id=?");
+            updateInventory.setLong(1, time);
+            updateInventory.setLong(2, existing.getId());
+            updateInventory.executeUpdate();
+            updateInventory.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -286,24 +348,17 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             // 'ORDER BY time' depends on that the host computer times is always right.
             // 'ORDER BY id' what happens with the 'id' when we hit Long.MAX_VALUE?
             PreparedStatement ps = conn.prepareStatement("SELECT LIMIT 0 " + limit
-                    + " id, object, body FROM message WHERE read=false ORDER BY id");
+                    +MessageWrapper.RS_FIELDS+ " FROM message WHERE read=false ORDER BY id");
 
             // The lock is making sure, that a SELECT and DELETE/UPDATE is only
-            // done by one thread at a time.
-            lock.lock();
+            // done by one thread at a time. No update means no lock is needed
+            //lock.lock();
 
             ResultSet rs = ps.executeQuery();
 
-            while (rs.next()) {
-                long id = rs.getLong(1);
-                InputStream is = rs.getBinaryStream(2);
-                String body = rs.getString(3);
-
-                MessageWrapper mw = new MessageWrapper();
-                mw.id = id;
-                mw.body = body;
-                if (is != null) mw.object = Utils.deserialize(is);
-
+            while (rs.next())
+            {
+                MessageWrapper mw=MessageWrapper.fromResultSet(rs);
                 messages.add(mw);
             }
 
@@ -311,23 +366,51 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         } finally {
-            lock.unlock();
+            //lock.unlock();
         }
 
         return messages;
     }
 
-    private List<Message> receiveInternal(int limit, boolean delete) {
+    public
+    MessageWrapper peek(String dupeKey)
+    {
+        try {
+            PreparedStatement ps = conn.prepareStatement("SELECT LIMIT 0 1"
+                + MessageWrapper.RS_FIELDS+ " FROM message WHERE dupeKey = ?");
+
+            ps.setString(1, dupeKey);
+
+            ResultSet rs = ps.executeQuery();
+            MessageWrapper mw=null;
+
+            if (rs.next())
+            {
+                mw=MessageWrapper.fromResultSet(rs);
+            }
+
+            rs.close();
+            ps.close();
+
+            return mw;
+        } catch (SQLException e) {
+            throw new RuntimeException("could not locate message by duplicate suppression key: "+e, e);
+        }
+    }
+
+    private
+    List<Message> receiveInternal(int limit, boolean delete)
+    {
         if (limit < 1) limit = 1;
 
         List<Message> messages = new ArrayList<Message>(limit);
 
         try {
 
-            // 'ORDER BY time' depends on that the host computer times is always right.
-            // 'ORDER BY id' what happens with the 'id' when we hit Long.MAX_VALUE?
+            // 'ORDER BY time' depends on that the host computer times is always right, but it lets us use delayed messages, etc...
+            // 'ORDER BY id' what happens with the 'id' when we hit Long.MAX_VALUE? ( the heat-death of the universe? )
             PreparedStatement ps = conn.prepareStatement("SELECT LIMIT 0 " + limit
-                    + " id, object, body FROM message WHERE read=false ORDER BY id");
+                    + MessageWrapper.RS_FIELDS + "FROM message WHERE read=false ORDER BY time");
 
             // The lock is making sure, that a SELECT and DELETE/UPDATE is only
             // done by one thread at a time.
@@ -335,10 +418,10 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
             ResultSet rs = ps.executeQuery();
 
-            while (rs.next()) {
-                long id = rs.getLong(1);
-                InputStream is = rs.getBinaryStream(2);
-                String body = rs.getString(3);
+            while (rs.next())
+            {
+                MessageWrapper mw=MessageWrapper.fromResultSet(rs);
+                long id = mw.getId();
 
                 if (delete) {
                     PreparedStatement updateInventory = conn.prepareStatement("DELETE FROM message WHERE id=?");
@@ -350,11 +433,6 @@ public class MessageQueueImp implements MessageQueue, Serializable {
                     updateInventory.setLong(2, id);
                     updateInventory.executeUpdate();
                 }
-
-                MessageWrapper mw = new MessageWrapper();
-                mw.id = id;
-                mw.body = body;
-                if (is != null) mw.object = Utils.deserialize(is);
 
                 messages.add(mw);
             }
@@ -510,6 +588,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             case 1340:
                 st.execute("ALTER TABLE message ADD COLUMN dupeKey VARCHAR;");
                 st.execute("ALTER TABLE message ADD COLUMN onCollision VARCHAR;");
+                st.execute("CREATE INDEX dupe_index ON message(dupeKey)");
 
              /*
              ---------------------------------------------------------------------------------------
@@ -543,7 +622,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             //read the integer
             ResultSet resultSet = st.executeQuery("SELECT version FROM meta LIMIT 1;");
             try {
-                if (resultSet.first())
+                if (resultSet.next())
                 {
                     int retval=resultSet.getInt(1);
                     log.debug("on-disk simple-mq database is at version {}", retval);
@@ -730,14 +809,56 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     }
 
     // A Message returned by this queue, is an instance of MessageWrapper.
-    private class MessageWrapper implements Message, Serializable
+    private static
+    class MessageWrapper implements Message, Serializable
     {
-		private static final long serialVersionUID = 7465209569623629016L;
+		//ivate static final long serialVersionUID = 7465209569623629016L;
+        private static final long serialVersionUID = 7465209569623629017L;
+
 		private String body;
         private long id;
+        private long time;
         private Serializable object;
         private String duplicateSuppressionKey;
         private OnCollision duplicateSuppressionAction;
+
+        private static final String RS_FIELDS=" id, time, body, dupeKey, onCollision, object ";
+
+        private MessageWrapper() {};
+
+        static
+        MessageWrapper fromResultSet(ResultSet rs) throws SQLException
+        {
+            MessageWrapper mw = new MessageWrapper();
+            mw.id = rs.getLong(1);
+            mw.time = rs.getLong(2);
+            mw.body = rs.getString(3);
+            mw.duplicateSuppressionKey=rs.getString(4);
+
+            String collision=rs.getString(5);
+
+            if (collision!=null)
+            {
+                mw.duplicateSuppressionAction=OnCollision.valueOf(collision);
+            }
+
+            InputStream is = rs.getBinaryStream(6);
+
+            if (is != null)
+            {
+                try {
+                    mw.object = Utils.deserialize(is);
+                } finally {
+                    try {
+                        is.close();
+                    } catch (IOException e) {
+                        //okay.
+                    }
+                }
+            }
+
+            return mw;
+        }
 
         public
         String getBody()
@@ -767,6 +888,12 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         OnCollision getDuplicateSuppressionAction()
         {
             return duplicateSuppressionAction;
+        }
+
+        public
+        long getTime()
+        {
+            return time;
         }
     }
 

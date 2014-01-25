@@ -49,6 +49,11 @@ public interface Message {
     long getId();
 
     /**
+     * @return the time in milliseconds that this message became available (usually the enqueue time)
+     */
+    long getTime();
+
+    /**
      * @return the string used to detect and automatically act upon similar/same messages in the queue, or null
      */
     String getDuplicateSuppressionKey();

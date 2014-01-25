@@ -8,6 +8,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Random;
 
 import static junit.framework.Assert.assertNotNull;
 import static junit.framework.Assert.assertNull;
@@ -123,6 +124,99 @@ public class TestInMemoryQueue {
         assertEquals(queue.peek(3).size(), 0);
     }
 
+    private
+    void dupePush(String a, String b, String dupeKey, OnCollision onCollision)
+    {
+        while (queue.receiveAndDelete()!=null);
+
+        aFewRandomMessages();
+        queue.send(new MessageInput(a).setDuplicateSuppressionKey(dupeKey, randomCollisionPolicy()));
+        aFewRandomMessages();
+        queue.send(new MessageInput(b).setDuplicateSuppressionKey(dupeKey, onCollision));
+        aFewRandomMessages();
+    }
+
+    private
+    void aFewRandomMessages()
+    {
+        int n=random.nextInt(4);
+        for (int i=0; i<n; i++)
+        {
+            queue.send(randomMessage());
+        }
+    }
+
+    private
+    MessageInput randomMessage()
+    {
+        return new MessageInput("not-relevant");
+    }
+
+    private final Random random=new Random();
+
+    private
+    OnCollision randomCollisionPolicy()
+    {
+        switch (random.nextInt(5))
+        {
+            case 0: return OnCollision.DEMOTE;
+            case 1: return OnCollision.DROP;
+            case 2: return OnCollision.REPLACE;
+            case 3: return OnCollision.SWAP;
+            case 4: return OnCollision.EXCLUDE;
+        }
+
+        return null;
+    }
+
+    @Test
+    public
+    void testDupeDROP() /* new message dies, old messages maintains it's place in the queue */
+    {
+        dupePush("alpha", "beta", "drop", OnCollision.DROP);
+        Message message=queue.peek("drop");
+        assertNotNull(message);
+        assertEquals("alpha", message.getBody());
+    }
+
+    @Test
+    public
+    void testDupeDEMOTE()  /* new message dies, but old message is moved to the end of the queue */
+    {
+        dupePush("gamma", "delta", "demote", OnCollision.DEMOTE);
+        Message message=queue.peek("demote");
+        assertNotNull(message);
+        assertEquals("gamma", message.getBody());
+    }
+
+    @Test
+    public
+    void testDupeREPLACE() /* old message dies, new message is placed at the end of the queue */
+    {
+        dupePush("alpha", "beta", "replace", OnCollision.REPLACE);
+        Message message=queue.peek("replace");
+        assertNotNull(message);
+        assertEquals("beta", message.getBody());
+    }
+
+    @Test
+    public
+    void testDupeSWAP() /* old message dies, but new message takes it's place in the queue (i.e. the queue time) */
+    {
+        dupePush("gamma", "delta", "swap", OnCollision.SWAP);
+        Message message=queue.peek("swap");
+        assertNotNull(message);
+        assertEquals("delta", message.getBody());
+    }
+
+    @Test
+    public
+    void testDupeEXCLUDE() /* both messages die */
+    {
+        dupePush("alpha", "beta", "exclude", OnCollision.EXCLUDE);
+        Message message=queue.peek("exclude");
+        assertNull(message);
+    }
 
     @After
     public void tearDown()
