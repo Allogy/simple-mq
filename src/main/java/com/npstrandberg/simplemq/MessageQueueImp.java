@@ -348,7 +348,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             // 'ORDER BY time' depends on that the host computer times is always right.
             // 'ORDER BY id' what happens with the 'id' when we hit Long.MAX_VALUE?
             PreparedStatement ps = conn.prepareStatement("SELECT LIMIT 0 " + limit
-                    +MessageWrapper.RS_FIELDS+ " FROM message WHERE read=false ORDER BY id");
+                    +MessageWrapper.RS_FIELDS+ " FROM message WHERE read=false ORDER BY time");
 
             // The lock is making sure, that a SELECT and DELETE/UPDATE is only
             // done by one thread at a time. No update means no lock is needed
@@ -359,7 +359,11 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             while (rs.next())
             {
                 MessageWrapper mw=MessageWrapper.fromResultSet(rs);
-                messages.add(mw);
+
+                if (!queueTimeIsInTheFuture(mw))
+                {
+                    messages.add(mw);
+                }
             }
 
             ps.close();
@@ -372,6 +376,20 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         return messages;
     }
 
+    private
+    boolean queueTimeIsInTheFuture(MessageWrapper mw)
+    {
+        long now=System.currentTimeMillis();
+        return (mw.getTime() > now);
+    }
+
+    /**
+     * Returns the first/only message with the given duplicate-suppression key, even if it's delayed-start time has not
+     * yet passed.
+     *
+     * @param dupeKey
+     * @return
+     */
     public
     MessageWrapper peek(String dupeKey)
     {
@@ -421,6 +439,9 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             while (rs.next())
             {
                 MessageWrapper mw=MessageWrapper.fromResultSet(rs);
+
+                if (queueTimeIsInTheFuture(mw)) continue;
+
                 long id = mw.getId();
 
                 if (delete) {
