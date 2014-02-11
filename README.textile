@@ -1,5 +1,5 @@
 
-This project is an attempt to revive what appears a small, unbloated, open-source, java-based and niche-useful persistent message queue.
+This project is an attempt to revive a small, unbloated, open-source, java-based and niche-useful persistent message queue.
 
 > https://github.com/Allogy/simple-mq
 
@@ -14,3 +14,5 @@ Simple to use and config. SimpleMQ can also expose a message queue to clients on
 The original/upstream simple-mq project can be found here:
 
 > http://code.google.com/p/simple-mq/
+
+Some reference this project as "simplemq", and there are other versions & languages on github (e.g. in erlang).
