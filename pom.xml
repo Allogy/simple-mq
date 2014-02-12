@@ -3,7 +3,7 @@
     <groupId>com.allogy.simplemq</groupId>
     <artifactId>simplemq</artifactId>
     <packaging>jar</packaging>
-    <version>1.4.2-SNAPSHOT</version>
+    <version>1.4.2</version>
     <name>simple-mq</name>
     <url>https://github.com/Allogy/simple-mq</url>
     <description>A simple message queue in Java</description>
@@ -168,7 +168,7 @@
     <scm>
         <connection>scm:git:git@github.com:Allogy/simple-mq.git</connection>
         <developerConnection>scm:git:git@github.com:Allogy/simple-mq.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>v1.4.2</tag>
     </scm>
 
     <repositories>
