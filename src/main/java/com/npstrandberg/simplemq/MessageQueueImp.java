@@ -264,7 +264,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
             if (existing!=null && (onCollision==OnCollision.SWAP || onCollision==OnCollision.REPLACE))
             {
-                log.debug("onCollision({}) deletes exisitng message: {}", onCollision, dupeKey);
+                log.debug("onCollision({}) deletes existing message: {}", onCollision, dupeKey);
                 delete(existing);
             }
 
@@ -593,6 +593,8 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
         final int LATEST=1400;
 
+        log.debug("db on disk is version {}, latest is {}", currentVersion, LATEST);
+
         switch (currentVersion)
         {
             case 0:
@@ -640,6 +642,8 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     {
         if (tableExists("meta"))
         {
+            log.debug("meta table exists");
+
             //read the integer
             ResultSet resultSet = st.executeQuery("SELECT version FROM meta LIMIT 1;");
             try {
@@ -660,11 +664,13 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         else
         if (tableExists("message"))
         {
+            log.debug("meta table does not exist, but message table does");
             //pre-meta table
-            return 13300;
+            return 1330;
         }
         else
         {
+            log.debug("database appears to be empty");
             //empty database
             return 0;
         }
