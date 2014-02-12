@@ -26,7 +26,10 @@ import java.util.List;
  *
  * @author Niels Peter Strandberg
  */
-public interface MessageQueue {
+public interface MessageQueue
+{
+
+    String getQueueName();
 
     /**
      * Add a message to the message queue

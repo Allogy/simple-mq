@@ -124,6 +124,12 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         Runtime.getRuntime().addShutdownHook(shutdownHook);
     }
 
+    public
+    String getQueueName()
+    {
+        return queueName;
+    }
+
     private static
     class RelayVMShutdown extends Thread
     {
@@ -644,8 +650,24 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         {
             log.debug("meta table exists");
 
-            //read the integer
-            ResultSet resultSet = st.executeQuery("SELECT version FROM meta LIMIT 1;");
+            /*
+            read the integer
+            --
+            For reasons that are not quite clear, the "LIMIT 1" syntax (which *is* a bit redundant)
+            fails to parse:
+
+            java.sql.SQLException: Unexpected token: 1 in statement [1]
+                at org.hsqldb.jdbc.Util.sqlException(Unknown Source)
+	            at org.hsqldb.jdbc.jdbcStatement.fetchResult(Unknown Source)
+	            at org.hsqldb.jdbc.jdbcStatement.executeQuery(Unknown Source)
+	            at com.npstrandberg.simplemq.MessageQueueImp.readDatabaseVersion(MessageQueueImp.java:648)
+	            at com.npstrandberg.simplemq.MessageQueueImp.createOrMigrateDatabaseStructure(MessageQueueImp.java:581)
+	            at com.npstrandberg.simplemq.MessageQueueImp.<init>(MessageQueueImp.java:111)
+	            ... 109 more
+
+             */
+            //ResultSet resultSet = st.executeQuery("SELECT version FROM meta LIMIT 1");
+            ResultSet resultSet = st.executeQuery("SELECT version FROM meta");
             try {
                 if (resultSet.next())
                 {

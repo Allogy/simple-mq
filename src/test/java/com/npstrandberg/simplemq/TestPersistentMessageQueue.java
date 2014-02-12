@@ -142,7 +142,9 @@ public class TestPersistentMessageQueue {
     }
 
     @After
-    public void tearDown() {
+    public void tearDown()
+    {
+        if (queue==null) return;
 
         assertFalse(queue.deleted());
         MessageQueueService.deleteMessageQueue(TEST_DATABASE);
@@ -150,6 +152,14 @@ public class TestPersistentMessageQueue {
 
         Collection<String> queues = MessageQueueService.getMessageQueueNames();
         assertFalse(queues.contains(TEST_DATABASE));
+    }
+
+    @Test
+    public void reloadSavedQueue()
+    {
+        queue.shutdown();
+        MessageQueueService.forgetMessageQueue(queue);
+        setUp();
     }
 
 }

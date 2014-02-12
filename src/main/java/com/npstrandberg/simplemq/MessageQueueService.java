@@ -133,4 +133,22 @@ public final class MessageQueueService {
         return queues.keySet();
     }
 
+    public static
+    boolean forgetMessageQueue(MessageQueue queue)
+    {
+        synchronized (queues)
+        {
+            return (queues.remove(queue.getQueueName())!=null);
+        }
+    }
+
+    public static
+    boolean forgetMessageQueue(String queueName)
+    {
+        synchronized (queues)
+        {
+            return (queues.remove(queueName)!=null);
+        }
+    }
+
 }
