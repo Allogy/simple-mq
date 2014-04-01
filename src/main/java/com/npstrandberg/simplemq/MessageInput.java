@@ -23,7 +23,8 @@ import java.io.Serializable;
  *
  * @author Niels Peter Strandberg
  */
-public class MessageInput implements Serializable {
+public class MessageInput implements Message, Serializable
+{
 
 	private static final long serialVersionUID = -1199735856685175142L;
 	private String body;
@@ -73,6 +74,21 @@ public class MessageInput implements Serializable {
     Serializable getObject()
     {
         return object;
+    }
+
+    @Override
+    public
+    long getId()
+    {
+        return -1;
+    }
+
+    private long creationTime=System.currentTimeMillis();
+
+    public
+    long getTime()
+    {
+        return creationTime;
     }
 
     public
