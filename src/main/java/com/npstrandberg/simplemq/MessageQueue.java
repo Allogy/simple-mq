@@ -34,18 +34,19 @@ public interface MessageQueue
     /**
      * Add a message to the message queue
      *
-     * @param messageInput
+     * @param messageInput commonly of type MessageInput.
+     * @see MessageInput
      */
-    void send(MessageInput messageInput);
+    void send(Message messageInput);
 
 
     /**
      * Best effort attempt to send all the provided messages. Problematic for lack of atomicity, if an exception is thrown,
      * some messages may have already been sent.
      *
-     * @param messageInputs
+     * @param messageInputs a collection of messages, commonly of type MessageInput
      */
-    void send(Collection<MessageInput> messageInputs);
+    void send(Collection<Message> messageInputs);
 
 
     /**
@@ -104,7 +105,6 @@ public interface MessageQueue
      * @return a List of Messages or an empty List - if there is no messages in the message queue
      */
     List<Message> receiveAndDelete(int n);
-
 
     /**
      * Deletes the Message from the message queue
@@ -174,4 +174,15 @@ public interface MessageQueue
      * Suspends all message queue operations & releases allocated resources.
      */
     void shutdown();
+
+    /**
+     * Shutdown the queue (preventing messages from coming in or out), call
+     * the provided messageVisitor on the final list of all messages (including
+     * those that might be presently worked on, or stale before being revived).
+     *
+     * If the messageVisitor does not throw an exception, then the queue itself
+     * is deleted (e.g. if it was a persistant queue).
+     */
+    void decommissionQueue(MessageVisitor messageVisitor);
+
 }

@@ -62,4 +62,9 @@ public interface Message {
      * @return the action that was to be performed if this message collided with another in the same message queue, or null only if the duplicate suppression key is also null
      */
     OnCollision getDuplicateSuppressionAction();
+
+    /**
+     * @return the amount of time (in milliseconds) that this message would be in a quiet period (immediately after being enqueued), before which it could not be dequeued.
+     */
+    long getStartDelay();
 }

@@ -29,7 +29,8 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 
-public class MessageQueueImp implements MessageQueue, Serializable {
+public class MessageQueueImp implements MessageQueue, Serializable
+{
 	
 	private static final long serialVersionUID = 4688999278205140460L;
 
@@ -157,12 +158,23 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
     }
 
+    private
+    void mustNotBeShutdown()
+    {
+        if (this.shutdown)
+        {
+            throw new IllegalStateException("message queue is shutdown");
+        }
+    }
 
     public
-    void send(Collection<MessageInput> messageInputs) {
+    void send(Collection<Message> messageInputs)
+    {
+        mustNotBeShutdown();
         RuntimeException exception=null;
 
-        for (MessageInput messageInput : messageInputs) {
+        for (Message messageInput : messageInputs)
+        {
             try {
                 send(messageInput);
             } catch (RuntimeException e) {
@@ -180,8 +192,10 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     }
 
     public
-    void send(MessageInput messageInput)
+    void send(Message messageInput)
     {
+        mustNotBeShutdown();
+
         if (messageInput == null) {
             throw new NullPointerException("The messageInput cannot be 'null'");
         }
@@ -296,7 +310,10 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     }
 
 
-    public Message receiveAndDelete() {
+    public
+    Message receiveAndDelete()
+    {
+        mustNotBeShutdown();
         List<Message> messages = this.receiveInternal(1, true);
 
         if (messages.size() > 0) {
@@ -307,12 +324,18 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     }
 
 
-    public List<Message> receiveAndDelete(int limit) {
+    public
+    List<Message> receiveAndDelete(int limit)
+    {
+        mustNotBeShutdown();
         return receiveInternal(limit, true);
     }
 
 
-    public Message receive() {
+    public
+    Message receive()
+    {
+        mustNotBeShutdown();
         List<Message> messages = this.receiveInternal(1, false);
 
         if (messages.size() > 0) {
@@ -323,12 +346,18 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     }
 
 
-    public List<Message> receive(int limit) {
+    public
+    List<Message> receive(int limit)
+    {
+        mustNotBeShutdown();
         return receiveInternal(limit, false);
     }
 
 
-    public Message peek() {
+    public
+    Message peek()
+    {
+        mustNotBeShutdown();
         List<Message> messages = this.peekInternal(1);
 
         if (messages.size() > 0) {
@@ -339,12 +368,17 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     }
 
 
-    public List<Message> peek(int limit) {
+    public
+    List<Message> peek(int limit)
+    {
+        mustNotBeShutdown();
         return peekInternal(limit);
     }
 
 
-    private List<Message> peekInternal(int limit) {
+    private
+    List<Message> peekInternal(int limit)
+    {
         if (limit < 1) limit = 1;
 
         List<Message> messages = new ArrayList<Message>(limit);
@@ -399,6 +433,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     public
     MessageWrapper peek(String dupeKey)
     {
+        mustNotBeShutdown();
         try {
             PreparedStatement ps = conn.prepareStatement("SELECT LIMIT 0 1"
                 + MessageWrapper.RS_FIELDS+ " FROM message WHERE dupeKey = ?");
@@ -474,7 +509,10 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         return messages;
     }
 
-    public boolean delete(List<Message> messages) {
+    public
+    boolean delete(List<Message> messages)
+    {
+        mustNotBeShutdown();
 
         try {
             conn.setAutoCommit(false);
@@ -510,7 +548,10 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         return false;
     }
 
-    public boolean delete(Message message) {
+    public
+    boolean delete(Message message)
+    {
+        mustNotBeShutdown();
 
         // The Message instances this queue returns is
         // and instance of 'MessageWrapper', so we only
@@ -532,25 +573,42 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     }
 
 
-    public void deleteQueue() {
+    public
+    void deleteQueue()
+    {
+        if (deleted) return;
+
         deleted = true;
         shutdown();
 
         // if we have a persistent queue, delete the files.
-        if (queueConfig instanceof PersistentMessageQueueConfig) {
+        if (queueConfig instanceof PersistentMessageQueueConfig)
+        {
             PersistentMessageQueueConfig pqc = (PersistentMessageQueueConfig) queueConfig;
             String cacheDirectory = (pqc.getDatabaseDirectory() == null) ? "" : pqc.getDatabaseDirectory();
-            Utils.deleteDirectory(new File(cacheDirectory + "queues/", queueName));
+
+            File queues=new File(cacheDirectory + "queues");
+            Utils.deleteDirectory(new File(queues, queueName));
+
+            String[] remaining=queues.list();
+
+            if (remaining==null || remaining.length==0)
+            {
+                queues.delete();
+            }
         }
     }
 
 
-    public MessageQueueConfig getMessageQueueConfig() {
+    public
+    MessageQueueConfig getMessageQueueConfig()
+    {
         return queueConfig;
     }
 
-
-    public boolean deleted() {
+    public
+    boolean deleted()
+    {
         return deleted;
     }
 
@@ -563,6 +621,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     public
     int unreadMessageCount()
     {
+        mustNotBeShutdown();
         int count = -1;
 
         try {
@@ -584,6 +643,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     public
     int totalMessageCount()
     {
+        mustNotBeShutdown();
         int count = -1;
 
         try {
@@ -602,7 +662,9 @@ public class MessageQueueImp implements MessageQueue, Serializable {
     }
 
 
-    public boolean isPersistent() {
+    public
+    boolean isPersistent()
+    {
         return (queueConfig instanceof PersistentMessageQueueConfig);
     }
 
@@ -777,6 +839,8 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
         shutdown=true;
 
+        timer.cancel();
+
         if (shutdownHook != null)
         {
             Runtime.getRuntime().removeShutdownHook(shutdownHook);
@@ -792,13 +856,57 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             log.error("could not shutdown hsqldb", e);
         }
 
-        timer.cancel();
-
         try {
             conn.isClosed();
         } catch (SQLException e) {
             log.warn("can not close connection", e);
         }
+    }
+
+    @Override
+    public
+    void decommissionQueue(MessageVisitor messageVisitor)
+    {
+        if (messageVisitor==null) throw new NullPointerException();
+
+        this.shutdown=true;
+
+        timer.cancel();
+
+        List<Message> messages = new ArrayList<Message>();
+
+        try
+        {
+            PreparedStatement ps = conn.prepareStatement("SELECT LIMIT "+MessageWrapper.RS_FIELDS+ " FROM message ORDER BY time");
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next())
+            {
+                MessageWrapper mw=MessageWrapper.fromResultSet(rs);
+
+                if (!queueTimeIsInTheFuture(mw))
+                {
+                    messages.add(mw);
+                }
+            }
+
+            ps.close();
+        }
+        catch (SQLException e)
+        {
+            throw new RuntimeException(e);
+        }
+
+        try {
+            messageVisitor.visit(messages);
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        deleteQueue();
     }
 
     // 'QueueMaintainers' are 2 background threads. 
@@ -965,6 +1073,13 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         OnCollision getDuplicateSuppressionAction()
         {
             return duplicateSuppressionAction;
+        }
+
+        @Override
+        public
+        long getStartDelay()
+        {
+            return 0;
         }
 
         public
