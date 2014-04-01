@@ -49,23 +49,23 @@ public class TestInMemoryQueue {
         mi.setObject("there");
         queue.send(mi);
 
-        assertEquals(2, queue.messageCount());
+        assertEquals(2, queue.unreadMessageCount());
 
         // test that I get the same queue instance back
         queue = MessageQueueService.getMessageQueue(TEST_DATABASE);
-        assertEquals(2, queue.messageCount());
+        assertEquals(2, queue.unreadMessageCount());
 
         {
             Message msg = queue.receiveAndDelete();
             assertTrue(msg instanceof Serializable);
             assertEquals(msg.getBody(), "hello");
-            assertEquals(1, queue.messageCount());
+            assertEquals(1, queue.unreadMessageCount());
         }
         {
             Message msg = queue.receive();
             assertEquals(msg.getObject(), "there");
             queue.delete(msg);
-            assertEquals(0, queue.messageCount());
+            assertEquals(0, queue.unreadMessageCount());
         }
         {
             Message msg = queue.receive();
@@ -95,11 +95,11 @@ public class TestInMemoryQueue {
 
         queue.send(list);
 
-        assertEquals(2, queue.messageCount());
+        assertEquals(2, queue.unreadMessageCount());
 
         List<Message> messages = queue.receiveAndDelete(2);
 
-        assertEquals(0, queue.messageCount());
+        assertEquals(0, queue.unreadMessageCount());
 
     }
 
@@ -112,7 +112,7 @@ public class TestInMemoryQueue {
 
         queue.send(list);
 
-        assertEquals(2, queue.messageCount());
+        assertEquals(2, queue.unreadMessageCount());
 
         List<Message> messages = queue.receive(2);
 

@@ -554,9 +554,16 @@ public class MessageQueueImp implements MessageQueue, Serializable {
         return deleted;
     }
 
+    public
+    long messageCount()
+    {
+        return unreadMessageCount();
+    }
 
-    public long messageCount() {
-        long count = -1;
+    public
+    int unreadMessageCount()
+    {
+        int count = -1;
 
         try {
             PreparedStatement ps = conn.prepareStatement("SELECT COUNT(id) FROM message WHERE read=?");
@@ -565,7 +572,7 @@ public class MessageQueueImp implements MessageQueue, Serializable {
             ResultSet rs = ps.executeQuery();
 
             rs.next();
-            count = rs.getLong(1);
+            count = rs.getInt(1);
             ps.close();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -573,6 +580,27 @@ public class MessageQueueImp implements MessageQueue, Serializable {
 
         return count;
     }
+
+    public
+    int totalMessageCount()
+    {
+        int count = -1;
+
+        try {
+            PreparedStatement ps = conn.prepareStatement("SELECT COUNT(id) FROM message");
+
+            ResultSet rs = ps.executeQuery();
+
+            rs.next();
+            count = rs.getInt(1);
+            ps.close();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return count;
+    }
+
 
     public boolean isPersistent() {
         return (queueConfig instanceof PersistentMessageQueueConfig);

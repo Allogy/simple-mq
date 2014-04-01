@@ -83,17 +83,17 @@ public class TestPersistentMessageQueue {
         mi.setObject("there");
         queue.send(mi);
 
-        assertEquals(2, queue.messageCount());
+        assertEquals(2, queue.unreadMessageCount());
 
         // test that I get the same queue instance back
         assertTrue(queue==MessageQueueService.getMessageQueue(TEST_DATABASE));
-        assertEquals(2, queue.messageCount());
+        assertEquals(2, queue.unreadMessageCount());
 
         // receive 1 message, but don't delete it.
         {
             Message msg = queue.receive();
             assertEquals(msg.getBody(), "hello");
-            assertEquals(1, queue.messageCount());
+            assertEquals(1, queue.unreadMessageCount());
         }
 
         // wait for the received message to be revived.
@@ -101,14 +101,14 @@ public class TestPersistentMessageQueue {
 
         // now the message should be revived by the "revive" thread and there
         // should therefor be 2 message in the queue again
-        assertEquals(2, queue.messageCount());
+        assertEquals(2, queue.unreadMessageCount());
 
         // now wait for the 2 messages to be "to old"
         wait(2000);
 
         // now the "to old" thread should have remove the 2 messages from the queue
         // and it should be empty.
-        assertEquals(0, queue.messageCount());
+        assertEquals(0, queue.unreadMessageCount());
 
         {
             Message msg = queue.receive();

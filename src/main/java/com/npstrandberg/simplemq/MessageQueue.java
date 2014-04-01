@@ -139,11 +139,24 @@ public interface MessageQueue
     boolean deleted();
 
     /**
-     * The number of messages in the queue
+     * The number of messages in the queue. May or may not include unread or active messages.
      *
-     * @return number of objects in the queue
+     * @return
      */
+    @Deprecated
     long messageCount();
+
+    /**
+     * The number of messages in the queue that have not been seen.
+     * @return
+     */
+    int unreadMessageCount();
+
+    /**
+     * The number of messages in the queue including those that are being worked (have been read) and those that are stale before they have been revived.
+     * @return
+     */
+    int totalMessageCount();
 
     /**
      * Is this message queue is persistent
