@@ -232,16 +232,25 @@ public class TestInMemoryQueue {
 
         queue.send(new MessageInput("alpha").setStartDelay(200));
 
+        assertEquals(1, queue.unreadMessageCount());
+        assertEquals(1, queue.totalMessageCount());
+
         assertNull(queue.peek());
         assertTrue(queue.peek(5).isEmpty());
         assertNull(queue.receive());
         assertTrue(queue.receive(5).isEmpty());
+
+        assertEquals(1, queue.unreadMessageCount());
+        assertEquals(1, queue.totalMessageCount());
 
         Thread.sleep(400);
 
         assertNotNull(queue.peek());
         assertFalse(queue.peek(5).isEmpty());
         assertNotNull(queue.receive());
+
+        assertEquals(0, queue.unreadMessageCount());
+        assertEquals(1, queue.totalMessageCount());
     }
 
     @After
