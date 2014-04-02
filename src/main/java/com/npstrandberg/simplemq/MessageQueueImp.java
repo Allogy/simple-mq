@@ -35,7 +35,7 @@ public class MessageQueueImp implements MessageQueue, Serializable
 	private static final long serialVersionUID = 4688999278205140460L;
 
     //TODO: maybe make this configurable per-queue?
-    public static final boolean INSTALL_SHUTDOWN_HOOK = true;
+    public static boolean INSTALL_SHUTDOWN_HOOK = true;
 
     private static Logger log = LoggerFactory.getLogger(MessageQueue.class);
 
