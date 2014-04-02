@@ -891,11 +891,7 @@ public class MessageQueueImp implements MessageQueue, Serializable
             while (rs.next())
             {
                 MessageWrapper mw=MessageWrapper.fromResultSet(rs);
-
-                if (!queueTimeIsInTheFuture(mw))
-                {
-                    messages.add(mw);
-                }
+                messages.add(mw);
             }
 
             ps.close();
