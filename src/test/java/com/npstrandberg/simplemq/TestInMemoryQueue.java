@@ -1,5 +1,6 @@
 package com.npstrandberg.simplemq;
 
+import junit.framework.Assert;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -252,6 +253,88 @@ public class TestInMemoryQueue {
         assertEquals(0, queue.unreadMessageCount());
         assertEquals(1, queue.totalMessageCount());
     }
+
+    @Test
+    public
+    void testDecommissionEmpty()
+    {
+        dump();
+
+        queue.decommissionQueue(new MessageVisitor()
+        {
+            @Override
+            public void visit(List<Message> messages) throws Exception
+            {
+                Assert.assertEquals(0, messages.size());
+            }
+        });
+
+        MessageQueueService.deleteMessageQueue(TEST_DATABASE);
+        setUp();
+    }
+
+
+    @Test
+    public
+    void testDecommissionActive()
+    {
+        dump();
+        queue.send(new MessageInput("alpha"));
+
+        queue.decommissionQueue(new MessageVisitor()
+        {
+            @Override
+            public void visit(List<Message> messages) throws Exception
+            {
+                Assert.assertEquals(1, messages.size());
+            }
+        });
+
+        MessageQueueService.deleteMessageQueue(TEST_DATABASE);
+        setUp();
+    }
+
+    @Test
+    public
+    void testDecommissionRead()
+    {
+        dump();
+        queue.send(new MessageInput("alpha"));
+        queue.receive();
+
+        queue.decommissionQueue(new MessageVisitor()
+        {
+            @Override
+            public void visit(List<Message> messages) throws Exception
+            {
+                Assert.assertEquals(1, messages.size());
+            }
+        });
+
+        MessageQueueService.deleteMessageQueue(TEST_DATABASE);
+        setUp();
+    }
+
+    @Test
+    public
+    void testDecommissionDelayed()
+    {
+        dump();
+        queue.send(new MessageInput("alpha").setStartDelay(200));
+
+        queue.decommissionQueue(new MessageVisitor()
+        {
+            @Override
+            public void visit(List<Message> messages) throws Exception
+            {
+                Assert.assertEquals(1, messages.size());
+            }
+        });
+
+        MessageQueueService.deleteMessageQueue(TEST_DATABASE);
+        setUp();
+    }
+
 
     @After
     public void tearDown()
