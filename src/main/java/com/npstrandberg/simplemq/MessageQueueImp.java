@@ -884,7 +884,7 @@ public class MessageQueueImp implements MessageQueue, Serializable
 
         try
         {
-            PreparedStatement ps = conn.prepareStatement("SELECT LIMIT "+MessageWrapper.RS_FIELDS+ " FROM message ORDER BY time");
+            PreparedStatement ps = conn.prepareStatement("SELECT "+MessageWrapper.RS_FIELDS+ " FROM message ORDER BY time");
 
             ResultSet rs = ps.executeQuery();
 
