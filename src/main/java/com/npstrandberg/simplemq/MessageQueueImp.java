@@ -34,6 +34,9 @@ public class MessageQueueImp implements MessageQueue, Serializable
 	
 	private static final long serialVersionUID = 4688999278205140460L;
 
+    //TODO: maybe make this configurable per-queue?
+    public static final boolean INSTALL_SHUTDOWN_HOOK = true;
+
     private static Logger log = LoggerFactory.getLogger(MessageQueue.class);
 
     private transient final Lock lock = new ReentrantLock();
@@ -119,10 +122,14 @@ public class MessageQueueImp implements MessageQueue, Serializable
 
         startQueueMaintainers();
 
-        // 'shutdownhook' is called when the JVM shuts down.
-        // Used here to make sure we shutdown properly.
-        shutdownHook = new RelayVMShutdown(this);
-        Runtime.getRuntime().addShutdownHook(shutdownHook);
+        //In some cases, this same queue is needed for another shutdown hook, or is otherwise unwanted.
+        if (INSTALL_SHUTDOWN_HOOK)
+        {
+            // 'shutdownhook' is called when the JVM shuts down.
+            // Used here to make sure we shutdown properly.
+            shutdownHook = new RelayVMShutdown(this);
+            Runtime.getRuntime().addShutdownHook(shutdownHook);
+        }
     }
 
     public
