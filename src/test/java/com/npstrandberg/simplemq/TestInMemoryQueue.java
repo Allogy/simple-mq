@@ -89,7 +89,7 @@ public class TestInMemoryQueue {
     @Test
     public void testSendListOfMessages() {
 
-        List<MessageInput> list = new ArrayList<MessageInput>();
+        List<Message> list = new ArrayList<Message>();
         list.add(new MessageInput("hello"));
         list.add(new MessageInput("hello2"));
 
@@ -106,7 +106,7 @@ public class TestInMemoryQueue {
     @Test
     public void testDeleteListOfMessages() {
 
-        List<MessageInput> list = new ArrayList<MessageInput>();
+        List<Message> list = new ArrayList<Message>();
         list.add(new MessageInput("hello"));
         list.add(new MessageInput("hello2"));
 
